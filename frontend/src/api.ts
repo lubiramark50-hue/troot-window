@@ -1,1 +1,5 @@
-PLACEHOLDER
+export type Job={id:string;title:string;employerName:string;location:string;category:string;mode:'OnSite'|'Hybrid'|'Remote';pay:string;description:string;requirements:string;phone?:string;whatsApp?:string;email?:string;employerVerified:boolean;createdAt:string;publishedAt?:string};
+export type JobsPage={items:Job[];page:number;pageSize:number;totalCount:number;hasNext:boolean};
+const base=(import.meta.env.VITE_API_BASE_URL||'').replace(/\/$/,'');
+async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(base+path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}});if(!r.ok){let m='Something went wrong. Please try again.';try{const x=await r.json();m=x.message||x.title||m}catch{}throw new Error(m)}return r.json()}
+export const jobsApi={list:(p:{q?:string;category?:string;mode?:string;page?:number;pageSize?:number})=>{const q=new URLSearchParams();if(p.q)q.set('q',p.q);if(p.category&&p.category!=='All')q.set('category',p.category);if(p.mode&&p.mode!=='All')q.set('mode',p.mode);q.set('page',String(p.page||1));q.set('pageSize',String(p.pageSize||20));return request<JobsPage>('/api/jobs?'+q)},get:(id:string)=>request<Job>('/api/jobs/'+id),create:(body:Record<string,unknown>)=>request<{id:string;status:string}>('/api/jobs',{method:'POST',body:JSON.stringify(body)})}; 
