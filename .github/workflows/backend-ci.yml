@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["backend/**",".github/workflows/backend-ci.yml"]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,4 +19,8 @@ jobs:
       - name: Restore
         run: dotnet restore
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release --no-restore --warnaserror
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+      - name: Check pending EF model changes
+        run: dotnet ef migrations has-pending-model-changes --no-build
