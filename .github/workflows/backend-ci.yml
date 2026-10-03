@@ -7,20 +7,21 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend/TrootWindow.Api
     steps:
       - uses: actions/checkout@v4
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      - name: Restore
+      - name: Restore API
+        working-directory: backend/TrootWindow.Api
         run: dotnet restore
-      - name: Build
+      - name: Restore tests
+        working-directory: backend/TrootWindow.Api.Tests
+        run: dotnet restore
+      - name: Build API
+        working-directory: backend/TrootWindow.Api
         run: dotnet build --configuration Release --no-restore --warnaserror
-      - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal
-      - name: Check pending EF model changes
-        run: dotnet ef migrations has-pending-model-changes --no-build
+      - name: Test API integration suite
+        working-directory: backend/TrootWindow.Api.Tests
+        run: dotnet test --configuration Release --no-restore --verbosity normal

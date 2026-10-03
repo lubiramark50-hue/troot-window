@@ -1,17 +1,13 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace TrootWindow.Api.Tests;
 
-public sealed class ApiSmokeTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ApiSmokeTests : IClassFixture<TestApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public ApiSmokeTests(WebApplicationFactory<Program> factory)
-    {
-        _client = factory.CreateClient();
-    }
+    public ApiSmokeTests(TestApplicationFactory factory) => _client = factory.CreateClient();
 
     [Fact]
     public async Task JobsEndpoint_IsReachable()
