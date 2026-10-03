@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace TrootWindow.Api.Tests;
@@ -6,7 +8,6 @@ namespace TrootWindow.Api.Tests;
 public sealed class ApiSmokeTests : IClassFixture<TestApplicationFactory>
 {
     private readonly HttpClient _client;
-
     public ApiSmokeTests(TestApplicationFactory factory) => _client = factory.CreateClient();
 
     [Fact]
