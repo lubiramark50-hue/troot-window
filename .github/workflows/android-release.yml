@@ -66,19 +66,20 @@ jobs:
           echo "TROOT_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
 
       - name: Build signed release APK
-        run: npx cap build android
+        run: |
+          npx cap build android             --keystorepath "$TROOT_KEYSTORE_PATH"             --keystorepass "$TROOT_KEYSTORE_PASSWORD"             --keystorealias "$TROOT_KEY_ALIAS"             --keystorealiaspass "$TROOT_KEY_PASSWORD"             --androidreleasetype APK             --signing-type apksigner
 
       - name: Verify signed APK
         shell: bash
         run: |
           set -e
-          test -f android/app/build/outputs/apk/release/app-release.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify android/app/build/outputs/apk/release/app-release.apk
-          ls -lh android/app/build/outputs/apk/release/app-release.apk
+          test -f android/app/build/outputs/apk/release/app-release-signed.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose android/app/build/outputs/apk/release/app-release-signed.apk
+          ls -lh android/app/build/outputs/apk/release/app-release-signed.apk
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: troot-window-release-apk
-          path: frontend/android/app/build/outputs/apk/release/app-release.apk
+          path: frontend/android/app/build/outputs/apk/release/app-release-signed.apk
           if-no-files-found: error
