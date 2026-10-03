@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          KEY_PASS="$(openssl rand -hex 24)"
+          export KEY_PASS="$(openssl rand -hex 24)"
           keytool -genkeypair -v             -keystore "$PWD/troot-window-ci.keystore"             -storepass:env KEY_PASS             -keypass:env KEY_PASS             -alias "troot-window-ci"             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Troot Window, OU=Troot Window, O=Troot Window, L=Kampala, ST=Central, C=UG"
           echo "TROOT_KEYSTORE_PATH=$PWD/troot-window-ci.keystore" >> "$GITHUB_ENV"
           echo "TROOT_KEYSTORE_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
