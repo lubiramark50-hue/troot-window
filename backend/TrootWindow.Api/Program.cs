@@ -1,24 +1,28 @@
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TrootWindow.Api.Data;
 
 var builder=WebApplication.CreateBuilder(args);
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(o=>o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 builder.Services.AddResponseCompression(o=>o.EnableForHttps=true);
 builder.Services.AddOutputCache();
-builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),sql=>sql.EnableRetryOnFailure(5,TimeSpan.FromSeconds(10),null)));
-builder.Services.AddRateLimiter(o=>o.AddFixedWindowLimiter("public",x=>{x.PermitLimit=120;x.Window=TimeSpan.FromMinutes(1);x.QueueLimit=0;}));
+var connection=builder.Configuration.GetConnectionString("DefaultConnection")??throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
+builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(5,TimeSpan.FromSeconds(10),null)));
+builder.Services.AddRateLimiter(o=>{
+ o.GlobalLimiter=PartitionedRateLimiter.Create<HttpContext,string>(context=>RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString()??"unknown",_=>new FixedWindowRateLimiterOptions{PermitLimit=120,Window=TimeSpan.FromMinutes(1),QueueLimit=0}));
+ o.AddFixedWindowLimiter("job-submit",x=>{x.PermitLimit=6;x.Window=TimeSpan.FromMinutes(10);x.QueueLimit=0;});
+ o.RejectionStatusCode=StatusCodes.Status429TooManyRequests;
+});
 builder.Services.AddCors(o=>o.AddPolicy("frontend",p=>p.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>()??[]).AllowAnyHeader().AllowAnyMethod()));
 var app=builder.Build();
 app.UseExceptionHandler();
-app.UseHttpsRedirection();
-app.UseResponseCompression();
-app.UseOutputCache();
-app.UseRateLimiter();
-app.UseCors("frontend");
-app.MapHealthChecks("/health");
-app.MapControllers();
+if(!app.Environment.IsDevelopment())app.UseHsts();
+app.UseHttpsRedirection();app.UseResponseCompression();app.UseOutputCache();app.UseRateLimiter();app.UseCors("frontend");
+app.Use(async(context,next)=>{context.Response.Headers["X-Content-Type-Options"]="nosniff";context.Response.Headers["X-Frame-Options"]="DENY";context.Response.Headers["Referrer-Policy"]="strict-origin-when-cross-origin";context.Response.Headers["Permissions-Policy"]="camera=(), microphone=(), geolocation=()";await next();});
+app.MapHealthChecks("/health");app.MapControllers();
 using(var scope=app.Services.CreateScope()){var db=scope.ServiceProvider.GetRequiredService<AppDbContext>();await db.Database.EnsureCreatedAsync();}
 app.Run();
