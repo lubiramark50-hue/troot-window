@@ -51,22 +51,34 @@ jobs:
             SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
           fi
           test -n "$SDKMANAGER"
-          echo "Using sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease
-        working-directory: frontend/android
-
-      - name: Verify APK
+      - name: Create ephemeral signing key
+        shell: bash
         run: |
-          test -f android/app/build/outputs/apk/release/app-release-unsigned.apk
-          ls -lh android/app/build/outputs/apk/release/app-release-unsigned.apk
+          set -e
+          KEY_PASS="$(openssl rand -hex 24)"
+          keytool -genkeypair -v             -keystore "$PWD/troot-window-ci.keystore"             -storepass:env KEY_PASS             -keypass:env KEY_PASS             -alias "troot-window-ci"             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Troot Window, OU=Troot Window, O=Troot Window, L=Kampala, ST=Central, C=UG"
+          echo "TROOT_KEYSTORE_PATH=$PWD/troot-window-ci.keystore" >> "$GITHUB_ENV"
+          echo "TROOT_KEYSTORE_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+          echo "TROOT_KEY_ALIAS=troot-window-ci" >> "$GITHUB_ENV"
+          echo "TROOT_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
 
-      - name: Upload APK
+      - name: Build signed release APK
+        run: npx cap build android
+
+      - name: Verify signed APK
+        shell: bash
+        run: |
+          set -e
+          test -f android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify android/app/build/outputs/apk/release/app-release.apk
+          ls -lh android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: troot-window-release-apk
-          path: frontend/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: frontend/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
