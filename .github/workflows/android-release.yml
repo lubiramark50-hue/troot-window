@@ -1,9 +1,15 @@
-name: Troot Window Android Release
+name: Troot Window Android OTA Release
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/android-release.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -11,77 +17,70 @@ jobs:
     defaults:
       run:
         working-directory: frontend
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
-
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: Build web app
-        run: npm run build
-
-      - name: Add Android platform
-        run: npx cap add android
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
+      - run: npm install
+      - name: Generate build version
+        run: |
+          mkdir -p public
+          node -e 'const fs=require("fs"); fs.writeFileSync("public/version.json", JSON.stringify({version: process.env.GITHUB_RUN_NUMBER, commit: process.env.GITHUB_SHA, updatedAt: new Date().toISOString()}, null, 2)+"\n")'
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+      - run: npm run build
+        env:
+          VITE_BUILD_SHA: ${{ github.sha }}
+      - run: npx cap sync android
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
-
       - name: Prepare Android SDK
-        shell: bash
         run: |
-          set -e
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          export ANDROID_HOME="$SDK_ROOT"
-          export ANDROID_SDK_ROOT="$SDK_ROOT"
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
-          if [ -z "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
-          fi
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/build-tools/36.0.0" >> "$GITHUB_PATH"
-
-      - name: Create ephemeral signing key
-        shell: bash
+      - name: Decode persistent signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          set -e
-          export KEY_PASS="$(openssl rand -hex 24)"
-          keytool -genkeypair -v             -keystore "$PWD/troot-window-ci.keystore"             -storepass:env KEY_PASS             -keypass:env KEY_PASS             -alias "troot-window-ci"             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Troot Window, OU=Troot Window, O=Troot Window, L=Kampala, ST=Central, C=UG"
-          echo "TROOT_KEYSTORE_PATH=$PWD/troot-window-ci.keystore" >> "$GITHUB_ENV"
-          echo "TROOT_KEYSTORE_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
-          echo "TROOT_KEY_ALIAS=troot-window-ci" >> "$GITHUB_ENV"
-          echo "TROOT_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
-
-      - name: Build signed release APK
+          test -n "$KEYSTORE"
+          echo "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/troot.keystore"
+      - name: Build signed APK
         run: |
-          npx cap build android             --keystorepath "$TROOT_KEYSTORE_PATH"             --keystorepass "$TROOT_KEYSTORE_PASSWORD"             --keystorealias "$TROOT_KEY_ALIAS"             --keystorealiaspass "$TROOT_KEY_PASSWORD"             --androidreleasetype APK             --signing-type apksigner
-
-      - name: Verify signed APK
-        shell: bash
+          npx cap build android --keystorepath "$RUNNER_TEMP/troot.keystore" --keystorepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" --keystorealias "${{ secrets.ANDROID_KEY_ALIAS }}" --keystorealiaspass "${{ secrets.ANDROID_KEY_PASSWORD }}" --androidreleasetype APK --signing-type apksigner
+      - name: Verify APK
+        id: apk
         run: |
-          set -e
-          test -f android/app/build/outputs/apk/release/app-release-signed.apk
-          apksigner verify --verbose android/app/build/outputs/apk/release/app-release-signed.apk
-          ls -lh android/app/build/outputs/apk/release/app-release-signed.apk
-
-      - name: Upload signed APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: troot-window-release-apk
-          path: frontend/android/app/build/outputs/apk/release/app-release-signed.apk
-          if-no-files-found: error
+          APK=android/app/build/outputs/apk/release/app-release-signed.apk
+          test -f "$APK"
+          apksigner verify --verbose "$APK"
+          cp "$APK" "$RUNNER_TEMP/Troot-Window.apk"
+          echo "sha256=$(sha256sum "$RUNNER_TEMP/Troot-Window.apk" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Create OTA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="ota-${{ github.run_number }}"
+          gh release create "$TAG" "$RUNNER_TEMP/Troot-Window.apk" --title "Troot Window $TAG" --notes "Signed OTA build ${{ github.sha }}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+      - name: Publish OTA manifest
+        run: |
+          cd ..
+          python3 - <<'PY'
+          import json,os
+          data={'versionCode':int('${{ github.run_number }}'),'version':'${{ github.run_number }}','apkUrl':f'https://github.com/${{ github.repository }}/releases/download/{os.environ["TAG"]}/Troot-Window.apk','sha256':'${{ steps.apk.outputs.sha256 }}','mandatory':False}
+          open('ota/latest.json','w').write(json.dumps(data,indent=2)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ota/latest.json frontend/public/version.json
+          git diff --cached --quiet || git commit -m 'chore: publish latest Troot Android OTA manifest'
+          git push
