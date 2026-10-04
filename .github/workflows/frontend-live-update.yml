@@ -1,0 +1,56 @@
+name: Troot Frontend Live Update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-live-update.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate immutable build version
+        run: |
+          mkdir -p public
+          node -e 'const fs=require("fs"); fs.writeFileSync("public/version.json", JSON.stringify({version: process.env.GITHUB_RUN_NUMBER, commit: process.env.GITHUB_SHA, updatedAt: new Date().toISOString()}, null, 2)+"\\n")'
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_BUILD_SHA: ${{ github.sha }}
+
+      - name: Verify build
+        run: test -f dist/index.html && test -f dist/version.json
+
+      - name: Publish build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: troot-web-${{ github.sha }}
+          path: frontend/dist
+          if-no-files-found: error
+          retention-days: 14
