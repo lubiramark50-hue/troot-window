@@ -21,7 +21,7 @@ async function offerAndroidOta(): Promise<void> {
     const response = await fetch(`${OTA_MANIFEST_URL}?t=${Date.now()}`, { cache: "no-store", headers: { Accept: "application/json" } });
     if (!response.ok) return;
     const ota = (await response.json()) as OtaManifest;
-    if (!ota.apkUrl || !ota.versionCode) return;
+    if (!ota.apkUrl || !ota.versionCode || !ota.sha256) return;
     const seen = Number(localStorage.getItem("troot:ota-version") || "0");
     if (ota.versionCode <= seen) return;
     otaPrompted = true;
