@@ -1,7 +1,5 @@
 -- Troot Window: Supabase schema, RLS and abuse controls.
--- Run once in Supabase Dashboard > SQL Editor. Safe to re-run.
-
-create extension if not exists pgcrypto;
+-- Already applied to project wftjesokdmjzixshjcwf. Safe to re-run.
 
 create table if not exists public.jobs (
   id uuid primary key default gen_random_uuid(),
@@ -41,14 +39,14 @@ create index if not exists reports_job_idx on public.job_reports (job_id, create
 
 -- Caller fingerprint: hashed client IP from the API gateway. Raw IPs are never stored.
 create or replace function public.caller_hash() returns text
-language sql stable as $$
-  select encode(digest(coalesce(
-    nullif(split_part(coalesce(current_setting('request.headers', true)::json->>'x-forwarded-for', ''), ',', 1), ''),
-    'unknown'), 'sha256'), 'hex')
+language sql stable set search_path = public as $$
+  select encode(sha256(convert_to(coalesce(
+    nullif(split_part(coalesce(nullif(current_setting('request.headers', true), '')::json->>'x-forwarded-for', ''), ',', 1), ''),
+    'unknown'), 'utf8')), 'hex')
 $$;
 
 create or replace function public.jobs_before_insert() returns trigger
-language plpgsql security definer set search_path = public, extensions as $$
+language plpgsql security definer set search_path = public as $$
 begin
   new.submitter_hash := public.caller_hash();
   new.status := 'pending_review';
@@ -64,7 +62,7 @@ begin
 end $$;
 
 create or replace function public.jobs_before_update() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   if new.status = 'published' and old.status <> 'published' then
     new.published_at := now();
@@ -73,7 +71,7 @@ begin
 end $$;
 
 create or replace function public.reports_before_insert() returns trigger
-language plpgsql security definer set search_path = public, extensions as $$
+language plpgsql security definer set search_path = public as $$
 begin
   new.reporter_hash := public.caller_hash();
   if (select count(*) from public.job_reports
@@ -123,6 +121,8 @@ grant insert (title, employer_name, location, category, mode, pay, description, 
               phone, whatsapp, email)
   on public.jobs to anon, authenticated;
 grant insert (job_id, reason, details) on public.job_reports to anon, authenticated;
+-- Lets the job_reports RLS check confirm the job is published without exposing other columns.
+grant select (id, status) on public.jobs to anon, authenticated;
 
 -- Moderation happens in the Supabase dashboard (service role bypasses RLS):
 --   update public.jobs set status = 'published', employer_verified = false where id = '...';
