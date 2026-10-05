@@ -31,10 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Require production API URL
+      - name: Require Supabase configuration
         env:
-          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
-        run: test -n "$VITE_API_BASE_URL"
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY"
 
       - name: Generate immutable build version
         run: |
@@ -48,7 +49,8 @@ jobs:
         run: npm run build
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
-          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Verify build
         run: test -f dist/index.html && test -f dist/version.json

@@ -30,14 +30,20 @@ jobs:
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_SHA: ${{ github.sha }}
-      - name: Require production API URL
+      - name: Require Supabase configuration
         env:
-          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
-        run: test -n "$VITE_API_BASE_URL"
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY"
       - run: npm run build
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
-          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - name: Add Android platform and generate app icons
+        run: |
+          test -d android || npx cap add android
+          npm run icons
       - run: npx cap sync android
       - uses: actions/setup-java@v5
         with:
