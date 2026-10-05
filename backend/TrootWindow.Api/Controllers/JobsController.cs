@@ -11,7 +11,13 @@ public sealed class JobsController(AppDbContext db):ControllerBase{
   page=Math.Clamp(page,1,10000);pageSize=Math.Clamp(pageSize,1,50);var query=db.Jobs.AsNoTracking().Where(j=>j.Status==JobStatus.Published);
   if(!string.IsNullOrWhiteSpace(q)){q=q.Trim();query=query.Where(j=>j.Title.Contains(q)||j.EmployerName.Contains(q)||j.Location.Contains(q)||j.Category.Contains(q)||j.Requirements.Contains(q));}
   if(!string.IsNullOrWhiteSpace(category)&&category!="All")query=query.Where(j=>j.Category==category);if(mode.HasValue)query=query.Where(j=>j.Mode==mode);
-  var total=await query.CountAsync(ct);var rows=await query.OrderByDescending(j=>j.EmployerVerified).ThenByDescending(j=>j.CreatedAt).Skip((page-1)*pageSize).Take(pageSize).Select(j=>new JobListItem(j.Id,j.Title,j.EmployerName,j.Location,j.Category,j.Mode,j.Pay,j.Description,j.Requirements,j.EmployerVerified,j.CreatedAt,j.PublishedAt)).ToListAsync(ct);
+  var total=await query.CountAsync(ct);
+  List<JobListItem> rows;
+  if(db.Database.ProviderName?.Contains("Sqlite",StringComparison.OrdinalIgnoreCase)==true){
+    rows=await query.OrderByDescending(j=>j.EmployerVerified).ThenByDescending(j=>j.CreatedAt.UtcDateTime).Skip((page-1)*pageSize).Take(pageSize).Select(j=>new JobListItem(j.Id,j.Title,j.EmployerName,j.Location,j.Category,j.Mode,j.Pay,j.Description,j.Requirements,j.EmployerVerified,j.CreatedAt,j.PublishedAt)).ToListAsync(ct);
+  }else{
+    rows=await query.OrderByDescending(j=>j.EmployerVerified).ThenByDescending(j=>j.CreatedAt).Skip((page-1)*pageSize).Take(pageSize).Select(j=>new JobListItem(j.Id,j.Title,j.EmployerName,j.Location,j.Category,j.Mode,j.Pay,j.Description,j.Requirements,j.EmployerVerified,j.CreatedAt,j.PublishedAt)).ToListAsync(ct);
+  }
   return Ok(new JobsPage(rows,page,pageSize,total,page*pageSize<total));
  }
  [HttpGet("{id:guid}")][OutputCache(Duration=30,VaryByRouteValueNames=new[]{"id"})]
