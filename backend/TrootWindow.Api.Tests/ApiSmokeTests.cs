@@ -1,7 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Json;
-using Xunit;
-
+using System.Threading.Tasks;
 namespace TrootWindow.Api.Tests;
 
 public sealed class ApiSmokeTests : IClassFixture<TestApplicationFactory>
