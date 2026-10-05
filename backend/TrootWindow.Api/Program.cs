@@ -11,7 +11,13 @@ builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 builder.Services.AddResponseCompression(o=>o.EnableForHttps=true);
 builder.Services.AddOutputCache();
 var connection=builder.Configuration.GetConnectionString("DefaultConnection")??throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
-builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(5,TimeSpan.FromSeconds(10),null)));
+if(builder.Environment.IsEnvironment("Testing"))
+    builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlite("Data Source=:memory:"));
+else
+    if(builder.Environment.IsEnvironment("Testing"))
+    builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlite("Data Source=:memory:"));
+else
+    builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(5,TimeSpan.FromSeconds(10),null)));
 builder.Services.AddRateLimiter(o=>{
  o.GlobalLimiter=PartitionedRateLimiter.Create<HttpContext,string>(context=>RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString()??"unknown",_=>new FixedWindowRateLimiterOptions{PermitLimit=120,Window=TimeSpan.FromMinutes(1),QueueLimit=0}));
  o.AddFixedWindowLimiter("job-submit",x=>{x.PermitLimit=6;x.Window=TimeSpan.FromMinutes(10);x.QueueLimit=0;});
