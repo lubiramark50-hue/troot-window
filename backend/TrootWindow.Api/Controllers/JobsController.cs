@@ -14,7 +14,8 @@ public sealed class JobsController(AppDbContext db):ControllerBase{
   var total=await query.CountAsync(ct);
   List<JobListItem> rows;
   if(db.Database.ProviderName?.Contains("Sqlite",StringComparison.OrdinalIgnoreCase)==true){
-    rows=await query.OrderByDescending(j=>j.EmployerVerified).ThenByDescending(j=>j.CreatedAt.UtcDateTime).Skip((page-1)*pageSize).Take(pageSize).Select(j=>new JobListItem(j.Id,j.Title,j.EmployerName,j.Location,j.Category,j.Mode,j.Pay,j.Description,j.Requirements,j.EmployerVerified,j.CreatedAt,j.PublishedAt)).ToListAsync(ct);
+    var items=await query.ToListAsync(ct);
+    rows=items.OrderByDescending(j=>j.EmployerVerified).ThenByDescending(j=>j.CreatedAt).Skip((page-1)*pageSize).Take(pageSize).Select(j=>new JobListItem(j.Id,j.Title,j.EmployerName,j.Location,j.Category,j.Mode,j.Pay,j.Description,j.Requirements,j.EmployerVerified,j.CreatedAt,j.PublishedAt)).ToList();
   }else{
     rows=await query.OrderByDescending(j=>j.EmployerVerified).ThenByDescending(j=>j.CreatedAt).Skip((page-1)*pageSize).Take(pageSize).Select(j=>new JobListItem(j.Id,j.Title,j.EmployerName,j.Location,j.Category,j.Mode,j.Pay,j.Description,j.Requirements,j.EmployerVerified,j.CreatedAt,j.PublishedAt)).ToListAsync(ct);
   }
