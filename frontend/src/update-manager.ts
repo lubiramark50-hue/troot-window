@@ -22,9 +22,8 @@ async function offerAndroidOta(): Promise<void> {
     if (!response.ok) return;
     const ota = (await response.json()) as OtaManifest;
     if (!ota.apkUrl || !ota.versionCode) return;
-    const current = Number((window as typeof window & { Capacitor?: { Plugins?: { App?: { getInfo?: () => Promise<{ version?: string }> } } } }).Capacitor?.Plugins?.App?.getInfo);
-    const seen = localStorage.getItem("troot:ota-version");
-    if (seen === String(ota.versionCode)) return;
+    const seen = Number(localStorage.getItem("troot:ota-version") || "0");
+    if (ota.versionCode <= seen) return;
     otaPrompted = true;
     const message = ota.mandatory ? "A required Troot Window update is available." : "A new Troot Window update is available.";
     if (ota.mandatory || window.confirm(`${message}\n\nUpdate now?`)) {
@@ -33,7 +32,6 @@ async function offerAndroidOta(): Promise<void> {
     } else {
       otaPrompted = false;
     }
-    void current;
   } catch { }
 }
 
