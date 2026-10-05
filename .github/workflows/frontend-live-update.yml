@@ -31,10 +31,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Require production API URL
+        env:
+          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
+        run: test -n "$VITE_API_BASE_URL"
+
       - name: Generate immutable build version
         run: |
           mkdir -p public
-          node -e 'const fs=require("fs"); fs.writeFileSync("public/version.json", JSON.stringify({version: process.env.GITHUB_RUN_NUMBER, commit: process.env.GITHUB_SHA, updatedAt: new Date().toISOString()}, null, 2)+"\\n")'
+          node -e 'const fs=require("fs"); fs.writeFileSync("public/version.json", JSON.stringify({version: process.env.GITHUB_RUN_NUMBER, commit: process.env.GITHUB_SHA, updatedAt: new Date().toISOString()}, null, 2)+"\n")'
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_SHA: ${{ github.sha }}
@@ -43,6 +48,7 @@ jobs:
         run: npm run build
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
+          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
 
       - name: Verify build
         run: test -f dist/index.html && test -f dist/version.json

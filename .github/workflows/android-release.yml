@@ -30,9 +30,14 @@ jobs:
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_SHA: ${{ github.sha }}
+      - name: Require production API URL
+        env:
+          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
+        run: test -n "$VITE_API_BASE_URL"
       - run: npm run build
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
+          VITE_API_BASE_URL: ${{ secrets.TROOT_API_BASE_URL }}
       - run: npx cap sync android
       - uses: actions/setup-java@v5
         with:

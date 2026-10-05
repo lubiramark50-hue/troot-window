@@ -17,7 +17,9 @@ builder.Services.AddRateLimiter(o=>{
  o.AddFixedWindowLimiter("job-submit",x=>{x.PermitLimit=6;x.Window=TimeSpan.FromMinutes(10);x.QueueLimit=0;});
  o.RejectionStatusCode=StatusCodes.Status429TooManyRequests;
 });
-builder.Services.AddCors(o=>o.AddPolicy("frontend",p=>p.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>()??[]).AllowAnyHeader().AllowAnyMethod()));
+var configuredOrigins=builder.Configuration.GetSection("Cors:Origins").Get<string[]>()??Array.Empty<string>();
+var allowedOrigins=configuredOrigins.Concat(new[]{"http://localhost:5173","https://localhost","capacitor://localhost"}).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+builder.Services.AddCors(o=>o.AddPolicy("frontend",p=>p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
 var app=builder.Build();
 app.UseExceptionHandler();
 if(!app.Environment.IsDevelopment())app.UseHsts();
