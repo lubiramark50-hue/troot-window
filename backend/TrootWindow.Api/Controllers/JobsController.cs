@@ -20,6 +20,7 @@ public sealed class JobsController(AppDbContext db):ControllerBase{
  public async Task<IActionResult>Create(CreateJobRequest r,CancellationToken ct){
   if(string.IsNullOrWhiteSpace(r.Title)||string.IsNullOrWhiteSpace(r.EmployerName)||string.IsNullOrWhiteSpace(r.Location)||string.IsNullOrWhiteSpace(r.Category)||string.IsNullOrWhiteSpace(r.Pay)||string.IsNullOrWhiteSpace(r.Description)||string.IsNullOrWhiteSpace(r.Requirements))return BadRequest(new{message="Complete all required job details."});
   if(string.IsNullOrWhiteSpace(r.Phone)&&string.IsNullOrWhiteSpace(r.WhatsApp)&&string.IsNullOrWhiteSpace(r.Email))return BadRequest(new{message="At least one contact method is required."});
+  if(!string.IsNullOrWhiteSpace(r.Email)&&!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(r.Email))return BadRequest(new{message="Enter a valid email address."});
   var j=new Job{Id=Guid.NewGuid(),Title=r.Title.Trim(),EmployerName=r.EmployerName.Trim(),Location=r.Location.Trim(),Category=r.Category.Trim(),Mode=r.Mode,Pay=r.Pay.Trim(),Description=r.Description.Trim(),Requirements=r.Requirements.Trim(),Phone=Clean(r.Phone),WhatsApp=Clean(r.WhatsApp),Email=string.IsNullOrWhiteSpace(r.Email)?null:r.Email.Trim()};db.Jobs.Add(j);await db.SaveChangesAsync(ct);return Accepted(new{id=j.Id,status=j.Status.ToString()});
 }
  [HttpPost("{id:guid}/reports")][EnableRateLimiting("job-submit")]

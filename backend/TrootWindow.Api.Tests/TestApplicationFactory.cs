@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using TrootWindow.Api.Data;
 
 namespace TrootWindow.Api.Tests;
@@ -22,6 +23,15 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions>();
             services.AddDbContextPool<AppDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+        return host;
     }
 
     protected override void Dispose(bool disposing)
