@@ -1,7 +1,7 @@
 const BUILD_ID = import.meta.env.VITE_BUILD_SHA || "dev";
 const VERSION_URL = new URL("version.json", document.baseURI).toString();
 const OTA_MANIFEST_URL = "https://raw.githubusercontent.com/lubiramark50-hue/troot-window/main/ota/latest.json";
-const CHECK_INTERVAL_MS = 30_000;
+const CHECK_INTERVAL_MS = 300_000;
 const STORAGE_KEY = "troot:last-reloaded-build";
 
 interface RemoteVersion { version?: string; commit?: string; updatedAt?: string; }

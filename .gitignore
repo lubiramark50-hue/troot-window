@@ -11,3 +11,5 @@ frontend/android/**/build/
 bin/
 obj/
 .vs/
+*.tsbuildinfo
+frontend/assets/*.png
