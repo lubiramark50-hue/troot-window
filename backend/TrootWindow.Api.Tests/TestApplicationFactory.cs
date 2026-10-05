@@ -5,6 +5,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using TrootWindow.Api.Data;
 
 namespace TrootWindow.Api.Tests;
@@ -23,6 +24,15 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(_connection));
             _connection.Open();
         });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+        return host;
     }
 
     protected override void Dispose(bool disposing)
