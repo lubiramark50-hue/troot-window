@@ -1,22 +1,30 @@
 name: Troot Window Backend CI
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
   push:
     branches: [main]
-    paths: ["backend/**",".github/workflows/backend-ci.yml"]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend/TrootWindow.Api
     steps:
       - uses: actions/checkout@v4
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      - name: Restore
+      - name: Restore API
+        working-directory: backend/TrootWindow.Api
         run: dotnet restore
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
+      - name: Restore tests
+        working-directory: backend/TrootWindow.Api.Tests
+        run: dotnet restore
+      - name: Build API
+        working-directory: backend/TrootWindow.Api
+        run: dotnet build --configuration Release --no-restore --warnaserror
+      - name: Test API integration suite
+        working-directory: backend/TrootWindow.Api.Tests
+        run: dotnet test --configuration Release --no-restore --verbosity normal

@@ -26,5 +26,5 @@ if(!app.Environment.IsDevelopment())app.UseHsts();
 app.UseHttpsRedirection();app.UseResponseCompression();app.UseOutputCache();app.UseRateLimiter();app.UseCors("frontend");
 app.Use(async(context,next)=>{context.Response.Headers["X-Content-Type-Options"]="nosniff";context.Response.Headers["X-Frame-Options"]="DENY";context.Response.Headers["Referrer-Policy"]="strict-origin-when-cross-origin";context.Response.Headers["Permissions-Policy"]="camera=(), microphone=(), geolocation=()";await next();});
 app.MapHealthChecks("/health");app.MapControllers();
-using(var scope=app.Services.CreateScope()){var db=scope.ServiceProvider.GetRequiredService<AppDbContext>();await db.Database.EnsureCreatedAsync();}
+using(var scope=app.Services.CreateScope()){var db=scope.ServiceProvider.GetRequiredService<AppDbContext>();await db.Database.MigrateAsync();}
 app.Run();
