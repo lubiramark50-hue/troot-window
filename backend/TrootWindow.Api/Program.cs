@@ -12,10 +12,7 @@ builder.Services.AddResponseCompression(o=>o.EnableForHttps=true);
 builder.Services.AddOutputCache();
 var connection=builder.Configuration.GetConnectionString("DefaultConnection")??throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
 if(builder.Environment.IsEnvironment("Testing"))
-    builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlite("Data Source=:memory:"));
-else
-    if(builder.Environment.IsEnvironment("Testing"))
-    builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlite("Data Source=:memory:"));
+    builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlite("Data Source=troot-tests.db"));
 else
     builder.Services.AddDbContextPool<AppDbContext>(o=>o.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(5,TimeSpan.FromSeconds(10),null)));
 builder.Services.AddRateLimiter(o=>{
