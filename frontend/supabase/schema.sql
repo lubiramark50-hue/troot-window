@@ -160,6 +160,13 @@ grant select (id, status) on public.jobs to anon, authenticated;
 -- (Supabase dashboard > Database > Extensions > enable "pg_cron", then re-run this block).
 do $do$
 begin
+  create extension if not exists pg_cron;
+exception when others then
+  raise notice 'Could not enable pg_cron automatically: %', SQLERRM;
+end $do$;
+
+do $do$
+begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     perform cron.schedule('close-expired-jobs', '15 * * * *', 'select public.close_expired_jobs()');
   else
