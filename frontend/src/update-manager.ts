@@ -1,5 +1,5 @@
 const BUILD_ID = import.meta.env.VITE_BUILD_SHA || "dev";
-const VERSION_URL = new URL("version.json", document.baseURI).toString();
+const VERSION_URL = new URL(`version.json`, window.location.origin + import.meta.env.BASE_URL).toString();
 const OTA_MANIFEST_URL = "https://raw.githubusercontent.com/lubiramark50-hue/troot-window/main/ota/latest.json";
 const CHECK_INTERVAL_MS = 300_000;
 const STORAGE_KEY = "troot:last-reloaded-build";
