@@ -1,7 +1,7 @@
 # Troot Window
 
 Job marketplace app. React 19, TypeScript, Vite, Capacitor (Android), Supabase.
-Workers browse without an account. Employer submissions land in `pending_review` and go live only after moderation.
+Workers browse without an account. Employer submissions go live immediately, guarded by per-network rate limits, duplicate blocking and a 30-day expiry.
 
 ## Setup
 1. Supabase Dashboard > SQL Editor: run `frontend/supabase/schema.sql` once.
@@ -10,7 +10,7 @@ Workers browse without an account. Employer submissions land in `pending_review`
 
 ## Security model
 - App ships only the anon key. RLS plus column grants decide everything (see schema.sql).
-- Public can read published jobs, submit jobs as `pending_review`, and report published jobs. Nothing else.
+- Public can read published jobs, submit jobs (published server-side immediately), and report published jobs. Nothing else.
 - Status, verification and publish date are server-controlled by triggers. Clients cannot set them.
 - Per-network rate limits run in the database on a hashed IP. Raw IPs are never stored.
 - Moderate in the Supabase dashboard. Never put the `service_role` key in the app or CI.

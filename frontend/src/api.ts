@@ -36,6 +36,7 @@ const toJob = (r: Row): Job => ({
 
 function fail(error: { message?: string; code?: string } | null | undefined): never {
   if (error?.message === "rate_limited") throw new Error("Too many requests from your network. Please wait a few minutes and try again.");
+  if (error?.message === "duplicate_job") throw new Error("This job was already posted today. It is already live in the feed.");
   if (error?.code === "23505") throw new Error("You have already reported this job.");
   if (error?.code === "23514" || error?.code === "22001") throw new Error("Some details are not valid. Please review the form.");
   if (error?.code === "42501") throw new Error("This action is not allowed.");
@@ -100,7 +101,7 @@ export const jobsApi = {
     if (error) fail(error);
   },
 
-  // No .select() on purpose: new jobs are pending_review and invisible to the public key.
+  // No .select() on purpose: the database sets status, verification and expiry server-side.
   async create(job: NewJob): Promise<void> {
     guard();
     const { error } = await withTimeout(supabase.from("jobs").insert({

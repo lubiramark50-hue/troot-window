@@ -52,7 +52,7 @@ export default function Post() {
   if (done) return (
     <div className="screen full">
       <TopBar title="Post a job" />
-      <div className="state success"><span className="pop"><CheckCircle2 size={52} /></span><h3>Sent for review</h3><p>We check every listing before workers see it. This usually takes a short while.</p><button className="btn btn-primary" onClick={() => nav("/", { replace: true })}>Back to jobs</button></div>
+      <div className="state success"><span className="pop"><CheckCircle2 size={52} /></span><h3>Your job is live</h3><p>Workers can see it now and contact you directly. It stays online for 30 days.</p><button className="btn btn-primary" onClick={() => nav("/", { replace: true })}>Back to jobs</button></div>
     </div>
   );
 
@@ -62,7 +62,7 @@ export default function Post() {
     <form className="screen full" onSubmit={submit} noValidate>
       <TopBar title="Post a job" />
       <div className="form">
-        <p className="form-intro">New listings are reviewed before they go live.</p>
+        <p className="form-intro">Your listing goes live immediately and stays online for 30 days.</p>
         {formError && <div className="banner-err" role="alert">{formError}</div>}
 
         <fieldset><legend>The job</legend>
@@ -90,7 +90,7 @@ export default function Post() {
         </fieldset>
         <input className="hp" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
       </div>
-      <div className="actionbar"><button className="btn btn-primary grow" type="submit" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={18} />Submitting</> : "Submit for review"}</button></div>
+      <div className="actionbar"><button className="btn btn-primary grow" type="submit" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={18} />Posting</> : "Post job"}</button></div>
     </form>
   );
 }

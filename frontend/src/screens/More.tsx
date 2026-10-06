@@ -31,12 +31,12 @@ const legal: Record<string, { title: string; body: string[] }> = {
   privacy: { title: "Privacy", body: [
     "You can browse and apply without an account. We do not ask for your name or location to search.",
     "Saved jobs stay on your device. When you post a job or report a listing, we store what you submit and a one-way hash of your network address to prevent abuse. We never store the raw address.",
-    "Contact details you add to a job are shown publicly once it is approved. Only add details you are happy to share.",
+    "Contact details you add to a job are shown publicly as soon as you post it. Only add details you are happy to share.",
     "To ask us to remove a listing or any data, contact the team through the address on our store listing." ] },
   terms: { title: "Terms of use", body: [
-    "Troot Window connects workers and employers. We review listings but cannot guarantee any employer or job.",
+    "Troot Window connects workers and employers. We remove listings that break our rules, but we cannot guarantee any employer or job.",
     "Employers must post honest, lawful jobs and must not charge applicants fees. Listings that break these rules are removed.",
-    "Verified means our team checked the employer at the time of review. It is not a guarantee of future conduct.",
+    "Verified means our team checked the employer at the time the badge was added. It is not a guarantee of future conduct.",
     "Always confirm details yourself before accepting work." ] },
 };
 
