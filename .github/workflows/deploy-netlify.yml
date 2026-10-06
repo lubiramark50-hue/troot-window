@@ -1,0 +1,54 @@
+name: Deploy to Netlify
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'netlify.toml'
+      - '.github/workflows/deploy-netlify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate build version
+        run: |
+          mkdir -p public
+          node -e 'const fs=require("fs"); fs.writeFileSync("public/version.json", JSON.stringify({version: process.env.GITHUB_RUN_NUMBER, commit: process.env.GITHUB_SHA, updatedAt: new Date().toISOString()}, null, 2)+"\n")'
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Build site
+        run: npm run build
+        env:
+          VITE_BUILD_SHA: ${{ github.sha }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Deploy to Netlify
+        run: npx --yes netlify-cli@latest deploy --prod --dir=dist --message "Deploy $GITHUB_SHA"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
