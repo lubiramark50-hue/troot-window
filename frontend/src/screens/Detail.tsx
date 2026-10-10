@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { BadgeCheck, Bookmark, CheckCircle2, Flag, Mail, MapPin, MessageCircle, Phone, Share2, ShieldAlert, Wallet, Briefcase, Laptop } from "lucide-react";
-import { jobsApi, modeLabel, type Job } from "../api";
+import { BadgeCheck, Bookmark, CheckCircle2, ExternalLink, Flag, Mail, MapPin, MessageCircle, Phone, Share2, ShieldAlert, Wallet, Briefcase, Laptop } from "lucide-react";
+import { jobsApi, modeLabel, sourceLabel, type Job } from "../api";
 import { Avatar, splitReq, timeAgo, TopBar, useSaved, useToast } from "../ui";
 
 export default function Detail() {
@@ -56,6 +56,7 @@ export default function Detail() {
             <h2>{job.title}</h2>
             <p className="sub">{job.employerName}{job.employerVerified && <span className="badge-ok"><BadgeCheck size={14} />Verified</span>}</p>
             <p className="ago">Posted {timeAgo(job.publishedAt ?? job.createdAt)}</p>
+            {job.sourceUrl && <p className="via-line">Listed on {sourceLabel(job.source)}</p>}
           </div>
         </div>
 
@@ -69,13 +70,25 @@ export default function Detail() {
         <section><h3>About the job</h3><p className="prose">{job.description}</p></section>
         <section><h3>Requirements</h3><ul className="req">{splitReq(job.requirements).map((r) => <li key={r}><CheckCircle2 size={17} />{r}</li>)}</ul></section>
 
+        {job.sourceUrl && (
+          <p className="source-note">
+            This vacancy was published by {job.employerName} and collected from {sourceLabel(job.source)}.
+            Apply on the original posting, and check the details there before sharing anything.
+          </p>
+        )}
+
         <aside className="notice"><ShieldAlert size={20} /><p><b>Stay safe.</b> Never pay to get a job. Do not share passwords, OTPs or bank details.</p></aside>
 
         <button className="report-btn" onClick={report} disabled={reporting || reported}><Flag size={15} />{reported ? "Report received" : reporting ? "Sending report" : "Report this job"}</button>
       </div>
 
       <div className="actionbar">
-        {digits && <a className="btn btn-green grow" href={`https://wa.me/${digits}?text=${msg}`} rel="noopener noreferrer"><MessageCircle size={19} />WhatsApp</a>}
+        {job.sourceUrl && (
+          <a className="btn btn-primary grow" href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={19} />View original listing
+          </a>
+        )}
+        {digits && <a className={`btn grow ${job.sourceUrl ? "btn-soft" : "btn-green"}`} href={`https://wa.me/${digits}?text=${msg}`} rel="noopener noreferrer"><MessageCircle size={19} />WhatsApp</a>}
         {job.phone && <a className={`btn grow ${digits ? "btn-soft" : "btn-primary"}`} href={`tel:${job.phone.replace(/[^\d+]/g, "")}`}><Phone size={19} />Call</a>}
         {job.email && <a className={`btn ${digits || job.phone ? "btn-soft icon-only" : "btn-primary grow"}`} aria-label="Email employer" href={`mailto:${job.email}?subject=${encodeURIComponent("Application: " + job.title)}&body=${msg}`}><Mail size={19} />{!(digits || job.phone) && "Email"}</a>}
       </div>

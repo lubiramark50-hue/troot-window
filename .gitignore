@@ -13,3 +13,5 @@ obj/
 .vs/
 *.tsbuildinfo
 frontend/assets/*.png
+# Local-only database connection string used to apply the schema / run the sync by hand.
+.db-url.txt

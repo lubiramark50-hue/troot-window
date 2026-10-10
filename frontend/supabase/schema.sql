@@ -37,11 +37,40 @@ create table if not exists public.job_reports (
 alter table public.jobs
   add column if not exists expires_at timestamptz not null default (now() + interval '30 days');
 
+-- Provenance for listings synced from an employer's own careers feed or a
+-- public job feed. Rows submitted through the app leave all of these null, and
+-- the insert trigger clears them so provenance can never be claimed by a client.
+alter table public.jobs
+  add column if not exists source text,
+  add column if not exists source_url text,
+  add column if not exists external_id text,
+  add column if not exists company_domain text,
+  add column if not exists last_seen_at timestamptz;
+
+-- Idempotent re-syncs: one row per listing per source.
+create unique index if not exists jobs_source_external_idx
+  on public.jobs (source, external_id)
+  where source is not null and external_id is not null;
+
+-- A synced listing's contact path is its original posting, so it does not need
+-- a phone number or email to be valid.
+alter table public.jobs drop constraint if exists jobs_has_contact;
+alter table public.jobs add constraint jobs_has_contact
+  check (phone is not null or whatsapp is not null or email is not null or source_url is not null);
+
 create index if not exists jobs_feed_idx on public.jobs (status, employer_verified desc, created_at desc);
 create index if not exists jobs_category_idx on public.jobs (status, category, created_at desc);
 create index if not exists jobs_submitter_idx on public.jobs (submitter_hash, created_at desc);
 create index if not exists jobs_expiry_idx on public.jobs (status, expires_at);
+create index if not exists jobs_external_idx on public.jobs (source, last_seen_at) where source is not null;
 create index if not exists reports_job_idx on public.job_reports (job_id, created_at desc);
+
+-- Sources whose listings come straight from the employer's own applicant
+-- tracking system. Only these may be marked as verified employers.
+create or replace function public.is_trusted_source(p_source text) returns boolean
+language sql immutable set search_path = public as $$
+  select p_source in ('greenhouse', 'lever', 'ashby', 'workable', 'smartrecruiters');
+$$;
 
 -- Caller fingerprint: hashed client IP from the API gateway. Raw IPs are never stored.
 create or replace function public.caller_hash() returns text
@@ -53,7 +82,31 @@ $$;
 
 create or replace function public.jobs_before_insert() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare
+  v_ingest boolean := coalesce(current_setting('troot.ingest', true), '') = 'on';
 begin
+  if v_ingest then
+    -- Rows written by the scheduled sync (see ingest_external_jobs). They come
+    -- from an employer's own feed, so provenance is trusted and the per-network
+    -- limits meant for anonymous visitors do not apply. Verification is only
+    -- ever granted for a trusted source, whatever the payload claims.
+    new.submitter_hash := 'source:' || coalesce(new.source, 'unknown');
+    new.status := 'published';
+    new.employer_verified := coalesce(new.employer_verified, false)
+      and public.is_trusted_source(new.source);
+    new.published_at := coalesce(new.published_at, now());
+    new.expires_at := now() + interval '30 days';
+    new.last_seen_at := now();
+    new.title := btrim(new.title);
+    return new;
+  end if;
+
+  -- A public submission can never claim provenance or verification.
+  new.source := null;
+  new.source_url := null;
+  new.external_id := null;
+  new.company_domain := null;
+  new.last_seen_at := null;
   new.submitter_hash := public.caller_hash();
   new.status := 'published';
   new.employer_verified := false;
@@ -88,6 +141,106 @@ language sql security definer set search_path = public as $$
   update public.jobs set status = 'closed'
   where status = 'published' and expires_at < now();
 $$;
+
+-- Synced listings that have disappeared from their source feed are closed, so
+-- the board never shows a vacancy that the employer has already filled.
+create or replace function public.close_stale_external_jobs(p_stale_after interval default '7 days')
+returns integer
+language sql security definer set search_path = public as $$
+  with closed as (
+    update public.jobs set status = 'closed'
+    where source is not null
+      and status = 'published'
+      and last_seen_at < now() - p_stale_after
+    returning 1
+  )
+  select count(*)::integer from closed;
+$$;
+
+-- Called only by the scheduled sync over the database connection. Inserts a
+-- listing the first time it is seen and refreshes it on every later sync, so a
+-- re-run is idempotent. Rows that fail the table's own validation are skipped
+-- rather than aborting the whole batch.
+create or replace function public.ingest_external_jobs(payload jsonb)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  item jsonb;
+  v_id uuid;
+  v_total integer := 0;
+  v_inserted integer := 0;
+  v_updated integer := 0;
+  v_skipped integer := 0;
+begin
+  perform set_config('troot.ingest', 'on', true);
+
+  for item in select value from jsonb_array_elements(coalesce(payload, '[]'::jsonb)) loop
+    v_total := v_total + 1;
+    begin
+      if coalesce(item->>'source', '') = '' or coalesce(item->>'external_id', '') = '' then
+        v_skipped := v_skipped + 1;
+        continue;
+      end if;
+
+      select id into v_id from public.jobs
+        where source = item->>'source'
+          and external_id = item->>'external_id';
+
+      if v_id is null then
+        insert into public.jobs (
+          title, employer_name, location, category, mode, pay, description,
+          requirements, email, source, source_url, external_id, company_domain,
+          employer_verified)
+        values (
+          left(item->>'title', 160),
+          left(item->>'employer_name', 160),
+          left(item->>'location', 120),
+          item->>'category',
+          item->>'mode',
+          left(coalesce(nullif(item->>'pay', ''), 'Not disclosed'), 120),
+          left(item->>'description', 5000),
+          left(coalesce(nullif(item->>'requirements', ''), 'See the full listing for requirements.'), 1000),
+          nullif(item->>'email', ''),
+          item->>'source',
+          item->>'source_url',
+          item->>'external_id',
+          nullif(item->>'company_domain', ''),
+          coalesce((item->>'employer_verified')::boolean, false));
+        v_inserted := v_inserted + 1;
+      else
+        update public.jobs set
+          title = left(item->>'title', 160),
+          employer_name = left(item->>'employer_name', 160),
+          location = left(item->>'location', 120),
+          category = item->>'category',
+          mode = item->>'mode',
+          pay = left(coalesce(nullif(item->>'pay', ''), 'Not disclosed'), 120),
+          description = left(item->>'description', 5000),
+          requirements = left(coalesce(nullif(item->>'requirements', ''), 'See the full listing for requirements.'), 1000),
+          email = nullif(item->>'email', ''),
+          source_url = item->>'source_url',
+          company_domain = nullif(item->>'company_domain', ''),
+          employer_verified = coalesce((item->>'employer_verified')::boolean, false)
+            and public.is_trusted_source(item->>'source'),
+          last_seen_at = now(),
+          expires_at = now() + interval '30 days'
+        where id = v_id;
+        v_updated := v_updated + 1;
+      end if;
+    exception when others then
+      v_skipped := v_skipped + 1;
+    end;
+  end loop;
+
+  return jsonb_build_object('total', v_total, 'inserted', v_inserted,
+                            'updated', v_updated, 'skipped', v_skipped);
+end $$;
+
+-- Only the database owner (the sync connection) may ingest or close listings.
+revoke all on function public.ingest_external_jobs(jsonb) from public;
+revoke all on function public.ingest_external_jobs(jsonb) from anon, authenticated;
+revoke all on function public.close_stale_external_jobs(interval) from public;
+revoke all on function public.close_stale_external_jobs(interval) from anon, authenticated;
 
 create or replace function public.jobs_before_update() returns trigger
 language plpgsql set search_path = public as $$
@@ -143,7 +296,8 @@ create policy "public reports published jobs" on public.job_reports
 revoke all on public.jobs from anon, authenticated;
 revoke all on public.job_reports from anon, authenticated;
 grant select (id, title, employer_name, location, category, mode, pay, description, requirements,
-              phone, whatsapp, email, employer_verified, status, created_at, published_at, expires_at)
+              phone, whatsapp, email, employer_verified, status, created_at, published_at, expires_at,
+              source, source_url, company_domain)
   on public.jobs to anon, authenticated;
 grant insert (title, employer_name, location, category, mode, pay, description, requirements,
               phone, whatsapp, email)

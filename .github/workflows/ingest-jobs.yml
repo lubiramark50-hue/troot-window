@@ -1,0 +1,106 @@
+name: Sync job sources
+
+on:
+  schedule:
+    # Every 6 hours. Listings are refreshed in place, so a re-run is harmless.
+    - cron: '20 */6 * * *'
+  # The sync also applies schema.sql when the provenance columns are missing, so a
+  # push that ships either the schema or the source scripts is enough to bring the
+  # board up: no manual step, and a re-run is harmless because everything is
+  # idempotent.
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/scripts/**'
+      - 'frontend/supabase/schema.sql'
+      - '.github/workflows/ingest-jobs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-source-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check that SUPABASE_DB_URL exists
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Add the SUPABASE_DB_URL repository secret first (Supabase > Project Settings > Database > Connection string > URI)."
+            exit 1
+          fi
+
+      # The sync reads and writes the provenance columns that schema.sql adds, so a
+      # project that has never run that file would otherwise sync nothing. Applying it
+      # here (it is idempotent) means one workflow run is enough to bring a fresh
+      # project up, instead of two that must be run in the right order.
+      - name: Ensure the schema is applied
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          applied="$(psql "$SUPABASE_DB_URL" -tAc "select 1 from information_schema.columns where table_schema = 'public' and table_name = 'jobs' and column_name = 'source'")"
+          if [ -n "$applied" ]; then
+            echo "Schema is up to date."
+          else
+            echo "Applying frontend/supabase/schema.sql before the first sync."
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f frontend/supabase/schema.sql
+          fi
+
+      # Offline and instant: the sync is the only thing that writes to the board,
+      # so a rule that files vacancies into the wrong category should stop here
+      # rather than reach production.
+      - name: Check the category mapping
+        working-directory: frontend
+        run: node scripts/verify-categories.mjs
+
+      # Fails the run before anything is written if an approved employer's board
+      # stops returning listings, or a feed is down.
+      - name: Verify every source is live
+        working-directory: frontend
+        run: node scripts/verify-sources.mjs
+
+      - name: Build the sync payload
+        working-directory: frontend
+        run: node scripts/ingest-jobs.mjs --out "$RUNNER_TEMP"
+
+      - name: Apply the sync
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          # The database connection bypasses RLS and the per-network limits that
+          # guard anonymous submissions; the app key is never used here.
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/ingest.sql"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Job source sync"
+            echo ""
+            echo "- Verified sources: see the verify step above"
+            echo "- Payload: \`frontend/scripts/ingest-jobs.mjs\`"
+            echo "- Applied over \`SUPABASE_DB_URL\` (owner connection, RLS bypassed deliberately)"
+          } >> "$GITHUB_STEP_SUMMARY"
