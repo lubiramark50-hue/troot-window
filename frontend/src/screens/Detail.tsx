@@ -8,6 +8,7 @@ export default function Detail() {
   const { id = "" } = useParams();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState(false);
   const saved = useSaved();
@@ -18,9 +19,9 @@ export default function Detail() {
     setJob(null); setError("");
     jobsApi.get(id).then((j) => live && setJob(j)).catch((e: Error) => live && setError(e.message));
     return () => { live = false; };
-  }, [id]);
+  }, [id, retryCount]);
 
-  if (error) return <div className="screen full"><TopBar title="Job" /><div className="state"><ShieldAlert size={34} /><h3>Job unavailable</h3><p>{error}</p></div></div>;
+  if (error) return <div className="screen full"><TopBar title="Job" /><div className="state"><ShieldAlert size={34} /><h3>Job unavailable</h3><p>{error}</p><button type="button" className="btn btn-primary" onClick={() => setRetryCount((count) => count + 1)}>Try again</button></div></div>;
   if (!job) return <div className="screen full"><TopBar title="Job details" /><div className="detail-skel" aria-hidden="true"><span className="sk sk-av big" /><span className="sk sk-l1" /><span className="sk sk-l2" /><span className="sk sk-block" /></div></div>;
 
   const on = saved.has(job.id);

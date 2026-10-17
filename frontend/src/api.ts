@@ -114,7 +114,7 @@ export const jobsApi = {
       let query = supabase.from("jobs").select(cols, { count: "exact" }).eq("status", "published");
       if (term) {
         const t = `"%${term}%"`;
-        query = query.or(["title", "employer_name", "location", "category", "requirements"].map((c) => `${c}.ilike.${t}`).join(","));
+        query = query.or(["title", "employer_name", "location", "category", "requirements", "pay"].map((c) => `${c}.ilike.${t}`).join(","));
       }
       if (place) query = query.ilike("location", `%${place}%`);
       if (p.category && p.category !== "All") query = query.eq("category", p.category);
