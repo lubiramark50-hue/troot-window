@@ -103,11 +103,12 @@ const withTimeout = <T,>(p: PromiseLike<T>): Promise<T> =>
 const cleanTerm = (q: string) => q.replace(/[%*,()"\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 
 export const jobsApi = {
-  async list(p: { q?: string; category?: string; mode?: string; verified?: boolean; page?: number; pageSize?: number }): Promise<JobsPage> {
+  async list(p: { q?: string; location?: string; category?: string; mode?: string; verified?: boolean; page?: number; pageSize?: number }): Promise<JobsPage> {
     guard();
     const page = Math.max(1, p.page ?? 1);
     const pageSize = Math.min(50, Math.max(1, p.pageSize ?? 20));
     const term = cleanTerm(p.q ?? "");
+    const place = cleanTerm(p.location ?? "");
     const from = (page - 1) * pageSize;
     const { data, count, error } = await selectWithFallback((cols) => {
       let query = supabase.from("jobs").select(cols, { count: "exact" }).eq("status", "published");
@@ -115,6 +116,7 @@ export const jobsApi = {
         const t = `"%${term}%"`;
         query = query.or(["title", "employer_name", "location", "category", "requirements"].map((c) => `${c}.ilike.${t}`).join(","));
       }
+      if (place) query = query.ilike("location", `%${place}%`);
       if (p.category && p.category !== "All") query = query.eq("category", p.category);
       if (p.mode && p.mode !== "All") query = query.eq("mode", p.mode);
       if (p.verified) query = query.eq("employer_verified", true);

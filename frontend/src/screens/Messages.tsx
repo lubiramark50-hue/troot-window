@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ArrowUpRight, BadgeCheck, BriefcaseBusiness, ChevronRight, Mail, MessageCircle, Search, Send, ShieldCheck, Smartphone, UserRound, WifiOff } from "lucide-react";
 import { jobsApi, type Job } from "../api";
 import { Avatar, timeAgo, useToast } from "../ui";
@@ -15,19 +15,26 @@ export default function Messages() {
   const [busy, setBusy] = useState(true);
   const [detailBusy, setDetailBusy] = useState(false);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const toast = useToast();
 
   useEffect(() => {
     let live = true;
+    setBusy(true);
+    setError("");
     jobsApi.list({ page: 1, pageSize: 50 }).then((result) => {
       if (!live) return;
       setJobs(result.items);
       setError("");
-      if (requestedId && result.items.some((job) => job.id === requestedId)) setActiveId(requestedId);
-      else if (!activeId && result.items.length) setActiveId(result.items[0].id);
+      if (requestedId) setActiveId(requestedId);
+      else if (result.items.length) setActiveId((current) => current || result.items[0].id);
     }).catch((e: Error) => live && setError(e.message)).finally(() => live && setBusy(false));
     return () => { live = false; };
-  }, []);
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (requestedId && requestedId !== activeId) setActiveId(requestedId);
+  }, [requestedId]);
 
   useEffect(() => {
     if (!activeId) { setActiveJob(null); return; }
@@ -36,9 +43,13 @@ export default function Messages() {
     jobsApi.get(activeId).then((job) => live && setActiveJob(job))
       .catch(() => live && setActiveJob(jobs.find((job) => job.id === activeId) || null))
       .finally(() => live && setDetailBusy(false));
-    setParams({ job: activeId }, { replace: true });
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("job", activeId);
+      return next;
+    }, { replace: true });
     return () => { live = false; };
-  }, [activeId]);
+  }, [activeId, jobs, setParams]);
 
   const filtered = useMemo(() => jobs.filter((job) => (job.title + " " + job.employerName + " " + job.location).toLowerCase().includes(query.toLowerCase())), [jobs, query]);
 
@@ -46,7 +57,7 @@ export default function Messages() {
     if (!activeJob || !draft.trim()) return;
     const message = encodeURIComponent(draft.trim());
     const phone = (activeJob.whatsApp || activeJob.phone || "").replace(/[^0-9]/g, "");
-    if (activeJob.whatsApp || activeJob.phone) {
+    if (phone) {
       window.open("https://wa.me/" + phone + "?text=" + message, "_blank", "noopener,noreferrer");
       toast("Message draft opened in WhatsApp. Send it there to deliver.");
       return;
@@ -59,7 +70,7 @@ export default function Messages() {
     toast("This listing has no direct contact details yet.");
   };
 
-  const canContact = !!(activeJob?.whatsApp || activeJob?.phone || activeJob?.email);
+  const canContact = !!((activeJob?.whatsApp || activeJob?.phone || "").replace(/[^0-9]/g, "") || activeJob?.email);
 
   return <div className="screen messages-screen">
     <header className="messages-heading">
@@ -72,12 +83,12 @@ export default function Messages() {
     </header>
     <div className="message-workspace">
       <section className="conversation-list" aria-label="Jobs to contact">
-        <div className="conversation-list-head"><h2>Job conversations</h2><span>{jobs.length}</span></div>
+        <div className="conversation-list-head"><h2>Jobs to contact</h2><span>{jobs.length}</span></div>
         <label className="search message-search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a job or employer" aria-label="Find a job or employer" /></label>
         {busy && <div className="message-empty"><span className="sk sk-l1" /><span className="sk sk-l2" /><span className="sk sk-l3" /></div>}
-        {error && !busy && <div className="message-empty"><WifiOff size={24} /><p>{error}</p></div>}
-        {!busy && !error && filtered.length === 0 && <div className="message-empty"><BriefcaseBusiness size={25} /><p>No matching jobs. Try another search.</p></div>}
-        {filtered.map((job) => <button type="button" key={job.id} className={"conversation-item" + (activeId === job.id ? " selected" : "")} onClick={() => { setActiveId(job.id); setDraft(""); }}>
+        {error && !busy && <div className="message-empty" role="alert"><WifiOff size={24} /><p>{error}</p><button type="button" className="btn btn-soft" onClick={() => setReloadKey((key) => key + 1)}>Try again</button></div>}
+        {!busy && !error && filtered.length === 0 && <div className="message-empty"><BriefcaseBusiness size={25} /><p>No matching jobs. Try another search or browse the job feed.</p><Link className="btn btn-soft" to="/">Browse jobs</Link></div>}
+        {!busy && !error && filtered.map((job) => <button type="button" key={job.id} className={"conversation-item" + (activeId === job.id ? " selected" : "")} onClick={() => { setActiveId(job.id); setDraft(""); }}>
           <Avatar job={job} size={43} />
           <span className="conversation-copy"><b>{job.employerName}</b><span>{job.title}</span><small>{job.location} · {timeAgo(job.publishedAt || job.createdAt)}</small></span>
           <ChevronRight size={16} className="conversation-chevron" />
@@ -89,7 +100,7 @@ export default function Messages() {
           <header className="message-panel-head">
             <Avatar job={activeJob} size={46} />
             <div className="message-recipient"><h2>{activeJob.employerName} {activeJob.employerVerified && <BadgeCheck size={16} className="verified-ico" />}</h2><p><BriefcaseBusiness size={14} /> {activeJob.title}</p><span>{activeJob.location}</span></div>
-            <span className="contact-status"><span className="status-dot" /> Job contact</span>
+            <span className="contact-status"><ShieldCheck size={12} /> Listing contact</span>
           </header>
           <div className="message-history">
             <div className="message-day">ABOUT THIS JOB</div>
@@ -108,6 +119,6 @@ export default function Messages() {
         </> : <div className="message-placeholder"><div className="placeholder-art"><MessageCircle size={32} /></div><h2>Your next conversation starts here</h2><p>Choose a job on the left to prepare a message for its employer.</p></div>}
       </section>
     </div>
-    <div className="messages-footnote"><Smartphone size={14} /> Troot Window opens WhatsApp or email to deliver your message. No in-app chat account is required.</div>
+    <div className="messages-footnote"><Smartphone size={14} /> Your draft opens in WhatsApp or email. Review it and press Send in that app; Troot Window does not store or deliver in-app messages.</div>
   </div>;
 }

@@ -4,10 +4,10 @@ import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck, MessageCircle, ArrowUpR
 import { isConfigured } from "./supabase";
 import { LogoMark, ToastProvider } from "./ui";
 import Feed from "./screens/Feed";
-import Saved from "./screens/Saved";
-import Messages from "./screens/Messages";
-import { Legal, More } from "./screens/More";
-
+const Saved = lazy(() => import("./screens/Saved"));
+const Messages = lazy(() => import("./screens/Messages"));
+const More = lazy(() => import("./screens/More").then((module) => ({ default: module.More })));
+const Legal = lazy(() => import("./screens/More").then((module) => ({ default: module.Legal })));
 const Detail = lazy(() => import("./screens/Detail"));
 const Post = lazy(() => import("./screens/Post"));
 

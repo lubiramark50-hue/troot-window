@@ -50,6 +50,9 @@ export default function Feed() {
   const category = params.get("c") ?? "All";
   const mode = params.get("m") ?? "All";
   const verified = params.get("v") === "1";
+  const locationParam = params.get("l") ?? "";
+  const [locationQuery, setLocationQuery] = useState(locationParam);
+  const [locationTerm, setLocationTerm] = useState(locationParam);
   const [items, setItems] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -60,27 +63,61 @@ export default function Feed() {
   const [nonce, setNonce] = useState(0);
   const sentinel = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { const t = window.setTimeout(() => setTerm(q.trim()), 300); return () => window.clearTimeout(t); }, [q]);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const value = q.trim();
+      setTerm(value);
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("q", value); else next.delete("q");
+        return next;
+      }, { replace: true });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [q, setParams]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const value = locationQuery.trim();
+      setLocationTerm(value);
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("l", value); else next.delete("l");
+        return next;
+      }, { replace: true });
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [locationQuery, setParams]);
+
+  useEffect(() => {
+    const urlQuery = params.get("q") ?? "";
+    if (urlQuery !== term && urlQuery !== q) { setQ(urlQuery); setTerm(urlQuery); }
+    const urlLocation = params.get("l") ?? "";
+    if (urlLocation !== locationTerm && urlLocation !== locationQuery) {
+      setLocationQuery(urlLocation);
+      setLocationTerm(urlLocation);
+    }
+  }, [params]);
 
   useEffect(() => {
     let live = true;
     setBusy(true); setError(""); setPage(1);
-    jobsApi.list({ q: term, category, mode, verified, page: 1, pageSize: 20 })
+    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, page: 1, pageSize: 20 })
       .then((r) => { if (!live) return; setItems(r.items); setTotal(r.totalCount); setHasNext(r.hasNext); })
       .catch((e: Error) => live && setError(e.message))
       .finally(() => live && setBusy(false));
     return () => { live = false; };
-  }, [term, category, mode, verified, nonce]);
+  }, [term, locationTerm, category, mode, verified, nonce]);
 
   const loadMore = useCallback(() => {
     if (more || busy || !hasNext) return;
     setMore(true);
     const next = page + 1;
-    jobsApi.list({ q: term, category, mode, verified, page: next, pageSize: 20 })
+    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, page: next, pageSize: 20 })
       .then((r) => { setItems((cur) => [...cur, ...r.items.filter((x) => !cur.some((c) => c.id === x.id))]); setPage(next); setHasNext(r.hasNext); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setMore(false));
-  }, [more, busy, hasNext, page, term, category, mode, verified]);
+  }, [more, busy, hasNext, page, term, locationTerm, category, mode, verified]);
 
   useEffect(() => {
     const el = sentinel.current;
@@ -102,6 +139,13 @@ export default function Feed() {
     setParams(next, { replace: true });
   };
 
+  const activeFilterCount = Number(Boolean(term)) + Number(Boolean(locationTerm)) +
+    Number(category !== "All") + Number(mode !== "All") + Number(verified);
+  const clearFilters = () => {
+    setQ(""); setTerm(""); setLocationQuery(""); setLocationTerm("");
+    setParams(new URLSearchParams(), { replace: true });
+  };
+
   return (
     <div className="screen">
       <header className="home-head">
@@ -111,6 +155,11 @@ export default function Feed() {
           <Search size={18} />
           <input type="search" inputMode="search" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Job, skill, employer or town" aria-label="Search jobs" />
           {q && <button type="button" className="clear" onClick={() => setQ("")} aria-label="Clear search"><X size={16} /></button>}
+        </label>
+        <label className="search location-filter">
+          <MapPin size={17} />
+          <input type="search" value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} placeholder="Filter by town or district" aria-label="Filter jobs by town or district" />
+          {locationQuery && <button type="button" className="clear" onClick={() => setLocationQuery("")} aria-label="Clear location filter"><X size={16} /></button>}
         </label>
         <div className="chips" role="group" aria-label="Category">
           {["All", ...CATEGORIES].map((c) => <button key={c} className={`chip${category === c ? " on" : ""}`} aria-pressed={category === c} onClick={() => setFilter("c", c)}>{c}</button>)}
@@ -126,13 +175,17 @@ export default function Feed() {
             <BadgeCheck size={15} />Verified employers only
           </button>
         </div>
+        {activeFilterCount > 0 && <div className="filter-summary">
+          <span>{activeFilterCount} {activeFilterCount === 1 ? "filter" : "filters"} active{locationTerm ? ` · ${locationTerm}` : ""}</span>
+          <button type="button" onClick={clearFilters}>Clear filters</button>
+        </div>}
       </header>
 
       {busy ? <Skeletons /> : error && items.length === 0 ? <ErrorState message={error} onRetry={() => setNonce((n) => n + 1)} /> : items.length === 0 ? (
-        <div className="state"><SearchX size={34} /><h3>No jobs match</h3><p>Try a different skill, town or category.</p></div>
+        <div className="state"><SearchX size={34} /><h3>No jobs match</h3><p>Try a different skill, town or category.</p>{activeFilterCount > 0 && <button type="button" className="btn btn-soft" onClick={clearFilters}>Clear filters</button>}</div>
       ) : (
         <>
-          <p className="count">{total} {total === 1 ? "job" : "jobs"}</p>
+          <p className="count" role="status" aria-live="polite">{total} {total === 1 ? "job" : "jobs"} found</p>
           <div className="list">{items.map((j) => <JobRow key={j.id} job={j} />)}</div>
           <div ref={sentinel} className="sentinel">{more && <Skeletons n={1} />}{error && <button className="btn btn-ghost" onClick={loadMore}>Retry loading more</button>}</div>
           <p className="source-note feed-note">
