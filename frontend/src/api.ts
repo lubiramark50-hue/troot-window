@@ -1,9 +1,12 @@
 import { isConfigured, supabase } from "./supabase";
+import { localDateKey } from "./job-logic.js";
 
 export type WorkMode = "OnSite" | "Hybrid" | "Remote";
 export type Job = {
   id: string; title: string; employerName: string; location: string; category: string;
   mode: WorkMode; pay: string; description: string; requirements: string;
+  salaryMin?: number | null; salaryMax?: number | null; salaryCurrency?: string; payPeriod?: string | null;
+  experienceLevel?: string | null; applicationDeadline?: string | null;
   phone?: string; whatsApp?: string; email?: string;
   employerVerified: boolean; createdAt: string; publishedAt?: string;
   /** Set when the listing was synced from an outside source rather than posted here. */
@@ -15,10 +18,15 @@ export type JobsPage = { items: Job[]; page: number; pageSize: number; totalCoun
 export type NewJob = {
   title: string; employerName: string; location: string; category: string; mode: WorkMode;
   pay: string; description: string; requirements: string;
+  salaryMin: number | null; salaryMax: number | null; salaryCurrency: string; payPeriod: string | null;
+  experienceLevel: string | null; applicationDeadline: string | null;
   phone: string | null; whatsApp: string | null; email: string | null;
 };
 
 export const CATEGORIES = ["Construction", "Technology", "Trades", "Hospitality", "Transport", "Other"] as const;
+export const EXPERIENCE_LEVELS = ["Entry level", "Junior", "Mid-level", "Senior", "Lead / Manager"] as const;
+export const PAY_CURRENCIES = ["UGX", "USD", "KES", "TZS", "RWF", "ZAR", "GBP", "EUR"] as const;
+export const PAY_PERIODS = ["Hourly", "Daily", "Weekly", "Monthly", "Yearly", "Contract"] as const;
 export const MODES: { value: WorkMode; label: string }[] = [
   { value: "OnSite", label: "On-site" },
   { value: "Hybrid", label: "Hybrid" },
@@ -41,7 +49,8 @@ export const SOURCE_LABELS: Record<string, string> = {
 };
 export const sourceLabel = (s?: string) => (s ? SOURCE_LABELS[s] ?? s : "");
 
-const LIST_COLS = "id,title,employer_name,location,category,mode,pay,description,requirements,employer_verified,created_at,published_at,source,source_url,company_domain";
+const STRUCTURED_COLS = "salary_min,salary_max,salary_currency,pay_period,experience_level,application_deadline";
+const LIST_COLS = "id,title,employer_name,location,category,mode,pay,description,requirements,employer_verified,created_at,published_at,source,source_url,company_domain," + STRUCTURED_COLS;
 const DETAIL_COLS = LIST_COLS + ",phone,whatsapp,email";
 const TIMEOUT_MS = 12000;
 
@@ -49,6 +58,9 @@ type Row = Record<string, any>;
 const toJob = (r: Row): Job => ({
   id: r.id, title: r.title, employerName: r.employer_name, location: r.location, category: r.category,
   mode: r.mode, pay: r.pay, description: r.description, requirements: r.requirements,
+  salaryMin: r.salary_min == null ? null : Number(r.salary_min), salaryMax: r.salary_max == null ? null : Number(r.salary_max),
+  salaryCurrency: r.salary_currency ?? "UGX", payPeriod: r.pay_period ?? undefined,
+  experienceLevel: r.experience_level ?? undefined, applicationDeadline: r.application_deadline ?? undefined,
   phone: r.phone ?? undefined, whatsApp: r.whatsapp ?? undefined, email: r.email ?? undefined,
   employerVerified: !!r.employer_verified, createdAt: r.created_at, publishedAt: r.published_at ?? undefined,
   source: r.source ?? undefined, sourceUrl: r.source_url ?? undefined, companyDomain: r.company_domain ?? undefined,
@@ -103,21 +115,35 @@ const withTimeout = <T,>(p: PromiseLike<T>): Promise<T> =>
 const cleanTerm = (q: string) => q.replace(/[%*,()"\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 
 export const jobsApi = {
-  async list(p: { q?: string; category?: string; mode?: string; verified?: boolean; page?: number; pageSize?: number }): Promise<JobsPage> {
+  async list(p: { q?: string; location?: string; category?: string; mode?: string; verified?: boolean; salaryMin?: number; salaryMax?: number; salaryCurrency?: string; payPeriod?: string; experienceLevel?: string; deadline?: string; page?: number; pageSize?: number }): Promise<JobsPage> {
     guard();
     const page = Math.max(1, p.page ?? 1);
     const pageSize = Math.min(50, Math.max(1, p.pageSize ?? 20));
     const term = cleanTerm(p.q ?? "");
+    const place = cleanTerm(p.location ?? "");
     const from = (page - 1) * pageSize;
     const { data, count, error } = await selectWithFallback((cols) => {
       let query = supabase.from("jobs").select(cols, { count: "exact" }).eq("status", "published");
       if (term) {
         const t = `"%${term}%"`;
-        query = query.or(["title", "employer_name", "location", "category", "requirements"].map((c) => `${c}.ilike.${t}`).join(","));
+        query = query.or(["title", "employer_name", "location", "category", "requirements", "pay"].map((c) => `${c}.ilike.${t}`).join(","));
       }
+      if (place) query = query.ilike("location", `%${place}%`);
       if (p.category && p.category !== "All") query = query.eq("category", p.category);
       if (p.mode && p.mode !== "All") query = query.eq("mode", p.mode);
       if (p.verified) query = query.eq("employer_verified", true);
+      if (p.experienceLevel) query = query.eq("experience_level", p.experienceLevel);
+      if (p.salaryCurrency) query = query.eq("salary_currency", p.salaryCurrency);
+      if (p.payPeriod) query = query.eq("pay_period", p.payPeriod);
+      if (p.salaryMin !== undefined) query = query.gte("salary_max", p.salaryMin);
+      if (p.salaryMax !== undefined) query = query.lte("salary_min", p.salaryMax);
+      const todayDate = new Date();
+      const today = localDateKey(todayDate);
+      if (p.deadline === "none") query = query.is("application_deadline", null);
+      else if (p.deadline === "7days" || p.deadline === "30days") {
+        const end = new Date(); end.setDate(end.getDate() + (p.deadline === "7days" ? 7 : 30));
+        query = query.gte("application_deadline", today).lte("application_deadline", localDateKey(end));
+      }
       return query
         .order("employer_verified", { ascending: false })
         .order("created_at", { ascending: false })
@@ -164,6 +190,8 @@ export const jobsApi = {
     const { error } = await withTimeout(supabase.from("jobs").insert({
       title: job.title, employer_name: job.employerName, location: job.location, category: job.category,
       mode: job.mode, pay: job.pay, description: job.description, requirements: job.requirements,
+      salary_min: job.salaryMin, salary_max: job.salaryMax, salary_currency: job.salaryCurrency,
+      pay_period: job.payPeriod, experience_level: job.experienceLevel, application_deadline: job.applicationDeadline,
       phone: job.phone, whatsapp: job.whatsApp, email: job.email,
     }));
     if (error) fail(error);

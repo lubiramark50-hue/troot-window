@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BadgeCheck, Bookmark, MapPin, Search, SearchX, WifiOff, X } from "lucide-react";
-import { CATEGORIES, MODES, jobsApi, modeLabel, sourceLabel, type Job } from "../api";
+import { CATEGORIES, EXPERIENCE_LEVELS, MODES, PAY_CURRENCIES, PAY_PERIODS, jobsApi, modeLabel, sourceLabel, type Job } from "../api";
 import { Avatar, LogoMark, splitReq, timeAgo, useSaved } from "../ui";
+import { normalizeSalaryParam, parseSalaryParam } from "../job-logic.js";
 
 export function JobRow({ job }: { job: Job }) {
   const saved = useSaved();
@@ -23,6 +24,7 @@ export function JobRow({ job }: { job: Job }) {
             <strong className="pay">{job.pay}</strong>
             <span className="ago">{timeAgo(job.publishedAt ?? job.createdAt)}</span>
           </div>
+          {(job.experienceLevel || job.applicationDeadline) && <p className="job-structured-meta">{job.experienceLevel && <span>{job.experienceLevel}</span>}{job.applicationDeadline && <span>Apply by {job.applicationDeadline}</span>}</p>}
           <div className="chips-inline">{splitReq(job.requirements).slice(0, 3).map((x) => <span key={x}>{x}</span>)}</div>
         </div>
       </Link>
@@ -50,6 +52,15 @@ export default function Feed() {
   const category = params.get("c") ?? "All";
   const mode = params.get("m") ?? "All";
   const verified = params.get("v") === "1";
+  const locationParam = params.get("l") ?? "";
+  const [locationQuery, setLocationQuery] = useState(locationParam);
+  const [locationTerm, setLocationTerm] = useState(locationParam);
+  const [salaryMin, setSalaryMin] = useState(normalizeSalaryParam(params.get("smin")));
+  const [salaryMax, setSalaryMax] = useState(normalizeSalaryParam(params.get("smax")));
+  const [salaryCurrency, setSalaryCurrency] = useState(params.get("cur") ?? "UGX");
+  const [payPeriod, setPayPeriod] = useState(params.get("period") ?? "");
+  const [experienceLevel, setExperienceLevel] = useState(params.get("exp") ?? "");
+  const [deadline, setDeadline] = useState(params.get("deadline") ?? "");
   const [items, setItems] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -59,28 +70,76 @@ export default function Feed() {
   const [error, setError] = useState("");
   const [nonce, setNonce] = useState(0);
   const sentinel = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { const t = window.setTimeout(() => setTerm(q.trim()), 300); return () => window.clearTimeout(t); }, [q]);
+  const requestGeneration = useRef(0);
+  const salaryMinValue = parseSalaryParam(salaryMin);
+  const salaryMaxValue = parseSalaryParam(salaryMax);
+  const invalidSalary = (salaryMin.trim() !== "" && salaryMinValue === undefined) || (salaryMax.trim() !== "" && salaryMaxValue === undefined);
+  const invalidSalaryRange = salaryMinValue !== undefined && salaryMaxValue !== undefined && salaryMinValue > salaryMaxValue;
 
   useEffect(() => {
+    const t = window.setTimeout(() => {
+      const value = q.trim();
+      setTerm(value);
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("q", value); else next.delete("q");
+        return next;
+      }, { replace: true });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [q, setParams]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const value = locationQuery.trim();
+      setLocationTerm(value);
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("l", value); else next.delete("l");
+        return next;
+      }, { replace: true });
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [locationQuery, setParams]);
+
+  useEffect(() => {
+    const urlQuery = params.get("q") ?? "";
+    if (urlQuery !== term && urlQuery !== q) { setQ(urlQuery); setTerm(urlQuery); }
+    const urlLocation = params.get("l") ?? "";
+    if (urlLocation !== locationTerm && urlLocation !== locationQuery) { setLocationQuery(urlLocation); setLocationTerm(urlLocation); }
+    setSalaryMin(normalizeSalaryParam(params.get("smin"))); setSalaryMax(normalizeSalaryParam(params.get("smax"))); setSalaryCurrency(params.get("cur") ?? "UGX");
+    setPayPeriod(params.get("period") ?? ""); setExperienceLevel(params.get("exp") ?? ""); setDeadline(params.get("deadline") ?? "");
+  }, [params]);
+
+  useEffect(() => {
+    const generation = ++requestGeneration.current;
     let live = true;
-    setBusy(true); setError(""); setPage(1);
-    jobsApi.list({ q: term, category, mode, verified, page: 1, pageSize: 20 })
-      .then((r) => { if (!live) return; setItems(r.items); setTotal(r.totalCount); setHasNext(r.hasNext); })
-      .catch((e: Error) => live && setError(e.message))
-      .finally(() => live && setBusy(false));
+    setBusy(true); setMore(false); setError(""); setPage(1);
+    if (invalidSalary || invalidSalaryRange) {
+      setItems([]); setTotal(0); setHasNext(false); setBusy(false);
+      return () => { live = false; };
+    }
+    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, salaryMin: salaryMinValue, salaryMax: salaryMaxValue, salaryCurrency: (salaryMinValue !== undefined || salaryMaxValue !== undefined) ? salaryCurrency : undefined, payPeriod: payPeriod || undefined, experienceLevel: experienceLevel || undefined, deadline: deadline || undefined, page: 1, pageSize: 20 })
+      .then((r) => { if (!live || generation !== requestGeneration.current) return; setItems(r.items); setTotal(r.totalCount); setHasNext(r.hasNext); })
+      .catch((e: Error) => { if (live && generation === requestGeneration.current) setError(e.message); })
+      .finally(() => { if (live && generation === requestGeneration.current) setBusy(false); });
     return () => { live = false; };
-  }, [term, category, mode, verified, nonce]);
+  }, [term, locationTerm, category, mode, verified, salaryMin, salaryMax, salaryCurrency, payPeriod, experienceLevel, deadline, invalidSalary, invalidSalaryRange, salaryMinValue, salaryMaxValue, nonce]);
 
   const loadMore = useCallback(() => {
-    if (more || busy || !hasNext) return;
+    if (more || busy || !hasNext || invalidSalary || invalidSalaryRange) return;
+    const generation = requestGeneration.current;
     setMore(true);
     const next = page + 1;
-    jobsApi.list({ q: term, category, mode, verified, page: next, pageSize: 20 })
-      .then((r) => { setItems((cur) => [...cur, ...r.items.filter((x) => !cur.some((c) => c.id === x.id))]); setPage(next); setHasNext(r.hasNext); })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setMore(false));
-  }, [more, busy, hasNext, page, term, category, mode, verified]);
+    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, salaryMin: salaryMinValue, salaryMax: salaryMaxValue, salaryCurrency: (salaryMinValue !== undefined || salaryMaxValue !== undefined) ? salaryCurrency : undefined, payPeriod: payPeriod || undefined, experienceLevel: experienceLevel || undefined, deadline: deadline || undefined, page: next, pageSize: 20 })
+      .then((r) => {
+        if (generation !== requestGeneration.current) return;
+        setItems((cur) => [...cur, ...r.items.filter((x) => !cur.some((c) => c.id === x.id))]);
+        setPage(next); setHasNext(r.hasNext);
+      })
+      .catch((e: Error) => { if (generation === requestGeneration.current) setError(e.message); })
+      .finally(() => { if (generation === requestGeneration.current) setMore(false); });
+  }, [more, busy, hasNext, page, term, locationTerm, category, mode, verified, salaryMin, salaryMax, salaryMinValue, salaryMaxValue, invalidSalary, invalidSalaryRange, salaryCurrency, payPeriod, experienceLevel, deadline]);
 
   useEffect(() => {
     const el = sentinel.current;
@@ -102,6 +161,19 @@ export default function Feed() {
     setParams(next, { replace: true });
   };
 
+  useEffect(() => {
+    const next = new URLSearchParams(params);
+    const values: Record<string, string> = { smin: salaryMin, smax: salaryMax, cur: (salaryMin || salaryMax) ? salaryCurrency : "", period: payPeriod, exp: experienceLevel, deadline };
+    Object.entries(values).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key));
+    setParams(next, { replace: true });
+  }, [salaryMin, salaryMax, salaryCurrency, payPeriod, experienceLevel, deadline]);
+
+  const activeFilterCount = Number(Boolean(term)) + Number(Boolean(locationTerm)) + Number(category !== "All") + Number(mode !== "All") + Number(verified) + Number(Boolean(salaryMin || salaryMax)) + Number(Boolean(payPeriod)) + Number(Boolean(experienceLevel)) + Number(Boolean(deadline));
+  const clearFilters = () => {
+    setQ(""); setTerm(""); setLocationQuery(""); setLocationTerm(""); setSalaryMin(""); setSalaryMax(""); setSalaryCurrency("UGX"); setPayPeriod(""); setExperienceLevel(""); setDeadline("");
+    setParams(new URLSearchParams(), { replace: true });
+  };
+
   return (
     <div className="screen">
       <header className="home-head">
@@ -112,12 +184,31 @@ export default function Feed() {
           <input type="search" inputMode="search" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Job, skill, employer or town" aria-label="Search jobs" />
           {q && <button type="button" className="clear" onClick={() => setQ("")} aria-label="Clear search"><X size={16} /></button>}
         </label>
+        <label className="search location-filter">
+          <MapPin size={17} />
+          <input type="search" value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} placeholder="Filter by town or district" aria-label="Filter jobs by town or district" />
+          {locationQuery && <button type="button" className="clear" onClick={() => setLocationQuery("")} aria-label="Clear location filter"><X size={16} /></button>}
+        </label>
         <div className="chips" role="group" aria-label="Category">
           {["All", ...CATEGORIES].map((c) => <button key={c} className={`chip${category === c ? " on" : ""}`} aria-pressed={category === c} onClick={() => setFilter("c", c)}>{c}</button>)}
         </div>
         <div className="chips" role="group" aria-label="Work type">
           {[{ value: "All", label: "Any type" }, ...MODES].map((m) => <button key={m.value} className={`chip alt${mode === m.value ? " on" : ""}`} aria-pressed={mode === m.value} onClick={() => setFilter("m", m.value)}>{m.label}</button>)}
         </div>
+        <details className="advanced-filters">
+          <summary>More filters <span>Salary, experience and closing date</span></summary>
+          <div className="advanced-filter-grid">
+            <label className="filter-field">Minimum pay<input type="number" min="0" step="any" inputMode="decimal" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="No minimum" /></label>
+            <label className="filter-field">Maximum pay<input type="number" min="0" step="any" inputMode="decimal" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="No maximum" /></label>
+            <label className="filter-field">Currency<select disabled={!salaryMin && !salaryMax} value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)}>{PAY_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
+            <label className="filter-field">Pay period<select value={payPeriod} onChange={(e) => setPayPeriod(e.target.value)}><option value="">Any period</option>{PAY_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select></label>
+            <label className="filter-field">Experience level<select value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)}><option value="">Any experience</option>{EXPERIENCE_LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}</select></label>
+            <label className="filter-field">Application deadline<select value={deadline} onChange={(e) => setDeadline(e.target.value)}><option value="">Any deadline</option><option value="7days">Closing within 7 days</option><option value="30days">Closing within 30 days</option><option value="none">No deadline specified</option></select></label>
+          </div>
+          {invalidSalary && <p className="filter-error" role="alert">Enter valid non-negative salary amounts.</p>}
+          {invalidSalaryRange && <p className="filter-error" role="alert">Minimum pay cannot exceed maximum pay.</p>}
+          {(salaryMin || salaryMax) && <p className="filter-hint">Salary filters only match structured ranges in the selected currency. Entering both values on a posted job is required; free-text pay is never guessed.</p>}
+        </details>
         {/* Kept out of the scrollable rows above: it is the filter that decides
             whether a listing is a verified employer, so it must be reachable
             without swiping. */}
@@ -126,13 +217,17 @@ export default function Feed() {
             <BadgeCheck size={15} />Verified employers only
           </button>
         </div>
+        {activeFilterCount > 0 && <div className="filter-summary">
+          <span>{activeFilterCount} {activeFilterCount === 1 ? "filter" : "filters"} active{locationTerm ? ` · ${locationTerm}` : ""}</span>
+          <button type="button" onClick={clearFilters}>Clear filters</button>
+        </div>}
       </header>
 
       {busy ? <Skeletons /> : error && items.length === 0 ? <ErrorState message={error} onRetry={() => setNonce((n) => n + 1)} /> : items.length === 0 ? (
-        <div className="state"><SearchX size={34} /><h3>No jobs match</h3><p>Try a different skill, town or category.</p></div>
+        <div className="state"><SearchX size={34} /><h3>No jobs match</h3><p>Try a different skill, town or category.</p>{activeFilterCount > 0 && <button type="button" className="btn btn-soft" onClick={clearFilters}>Clear filters</button>}</div>
       ) : (
         <>
-          <p className="count">{total} {total === 1 ? "job" : "jobs"}</p>
+          <p className="count" role="status" aria-live="polite">{total} {total === 1 ? "job" : "jobs"} found</p>
           <div className="list">{items.map((j) => <JobRow key={j.id} job={j} />)}</div>
           <div ref={sentinel} className="sentinel">{more && <Skeletons n={1} />}{error && <button className="btn btn-ghost" onClick={loadMore}>Retry loading more</button>}</div>
           <p className="source-note feed-note">
