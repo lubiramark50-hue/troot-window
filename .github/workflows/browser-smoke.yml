@@ -36,6 +36,9 @@ jobs:
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
+      - name: Validate E2E script syntax
+        working-directory: frontend
+        run: node --check scripts/e2e-smoke.mjs
       - name: Run browser smoke tests
         working-directory: frontend
         run: npm run test:e2e
