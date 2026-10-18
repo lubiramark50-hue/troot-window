@@ -25,9 +25,9 @@ jobs:
       PREVIEW_URL: ${{ inputs.preview_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Set up .NET
@@ -36,7 +36,7 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Restore backend test dependencies
         run: dotnet restore backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj
       - name: Run 60-minute soak cycle
