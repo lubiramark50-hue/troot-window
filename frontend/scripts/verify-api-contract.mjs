@@ -43,3 +43,7 @@ const admin = readFileSync(new URL("../src/screens/Admin.tsx", import.meta.url),
 for (const token of ["signInWithPassword", "app_metadata", "pending_review", "published", "rejected"]) {
   if (!admin.includes(token)) throw new Error("Admin moderation flow missing: " + token);
 }
+
+for (const token of ["new.status := 'pending_review';", "new.published_at := null;", "with check (status = 'pending_review' and employer_verified = false and published_at is null)"]) {
+  if (!sql.toLowerCase().includes(token.toLowerCase())) throw new Error("Public job moderation invariant missing: " + token);
+}

@@ -137,9 +137,9 @@ begin
   new.company_domain := null;
   new.last_seen_at := null;
   new.submitter_hash := public.caller_hash();
-  new.status := 'published';
+  new.status := 'pending_review';
   new.employer_verified := false;
-  new.published_at := now();
+  new.published_at := null;
   new.expires_at := now() + interval '30 days';
   new.title := btrim(new.title);
   -- Burst limit: 5 posts per 10 minutes per network.
@@ -314,7 +314,7 @@ create policy "public reads published jobs" on public.jobs
 drop policy if exists "public submits jobs for review" on public.jobs;
 create policy "public submits jobs for review" on public.jobs
   for insert to anon, authenticated
-  with check (employer_verified = false);
+  with check (status = 'pending_review' and employer_verified = false and published_at is null);
 
 drop policy if exists "public reports published jobs" on public.job_reports;
 create policy "public reports published jobs" on public.job_reports
