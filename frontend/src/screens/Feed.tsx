@@ -112,7 +112,7 @@ export default function Feed() {
       setItems([]); setTotal(0); setHasNext(false); setBusy(false);
       return () => { live = false; };
     }
-    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, salaryMin: salaryMin ? Number(salaryMin) : undefined, salaryMax: salaryMax ? Number(salaryMax) : undefined, salaryCurrency: (salaryMin || salaryMax) ? salaryCurrency : undefined, payPeriod: (salaryMin || salaryMax) ? payPeriod || undefined : undefined, experienceLevel: experienceLevel || undefined, deadline: deadline || undefined, page: 1, pageSize: 20 })
+    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, salaryMin: salaryMin ? Number(salaryMin) : undefined, salaryMax: salaryMax ? Number(salaryMax) : undefined, salaryCurrency: (salaryMin || salaryMax) ? salaryCurrency : undefined, payPeriod: payPeriod || undefined, experienceLevel: experienceLevel || undefined, deadline: deadline || undefined, page: 1, pageSize: 20 })
       .then((r) => { if (!live) return; setItems(r.items); setTotal(r.totalCount); setHasNext(r.hasNext); })
       .catch((e: Error) => live && setError(e.message))
       .finally(() => live && setBusy(false));
@@ -123,7 +123,7 @@ export default function Feed() {
     if (more || busy || !hasNext) return;
     setMore(true);
     const next = page + 1;
-    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, salaryMin: salaryMin ? Number(salaryMin) : undefined, salaryMax: salaryMax ? Number(salaryMax) : undefined, salaryCurrency: (salaryMin || salaryMax) ? salaryCurrency : undefined, payPeriod: (salaryMin || salaryMax) ? payPeriod || undefined : undefined, experienceLevel: experienceLevel || undefined, deadline: deadline || undefined, page: next, pageSize: 20 })
+    jobsApi.list({ q: term, location: locationTerm, category, mode, verified, salaryMin: salaryMin ? Number(salaryMin) : undefined, salaryMax: salaryMax ? Number(salaryMax) : undefined, salaryCurrency: (salaryMin || salaryMax) ? salaryCurrency : undefined, payPeriod: payPeriod || undefined, experienceLevel: experienceLevel || undefined, deadline: deadline || undefined, page: next, pageSize: 20 })
       .then((r) => { setItems((cur) => [...cur, ...r.items.filter((x) => !cur.some((c) => c.id === x.id))]); setPage(next); setHasNext(r.hasNext); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setMore(false));
@@ -156,7 +156,7 @@ export default function Feed() {
     setParams(next, { replace: true });
   }, [salaryMin, salaryMax, salaryCurrency, payPeriod, experienceLevel, deadline]);
 
-  const activeFilterCount = Number(Boolean(term)) + Number(Boolean(locationTerm)) + Number(category !== "All") + Number(mode !== "All") + Number(verified) + Number(Boolean(salaryMin || salaryMax)) + Number(Boolean(experienceLevel)) + Number(Boolean(deadline));
+  const activeFilterCount = Number(Boolean(term)) + Number(Boolean(locationTerm)) + Number(category !== "All") + Number(mode !== "All") + Number(verified) + Number(Boolean(salaryMin || salaryMax)) + Number(Boolean(payPeriod)) + Number(Boolean(experienceLevel)) + Number(Boolean(deadline));
   const clearFilters = () => {
     setQ(""); setTerm(""); setLocationQuery(""); setLocationTerm(""); setSalaryMin(""); setSalaryMax(""); setSalaryCurrency("UGX"); setPayPeriod(""); setExperienceLevel(""); setDeadline("");
     setParams(new URLSearchParams(), { replace: true });
@@ -188,13 +188,13 @@ export default function Feed() {
           <div className="advanced-filter-grid">
             <label className="filter-field">Minimum pay<input type="number" min="0" step="any" inputMode="decimal" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="No minimum" /></label>
             <label className="filter-field">Maximum pay<input type="number" min="0" step="any" inputMode="decimal" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="No maximum" /></label>
-            <label className="filter-field">Currency<select value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)}>{PAY_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
+            <label className="filter-field">Currency<select disabled={!salaryMin && !salaryMax} value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)}>{PAY_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
             <label className="filter-field">Pay period<select value={payPeriod} onChange={(e) => setPayPeriod(e.target.value)}><option value="">Any period</option>{PAY_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select></label>
             <label className="filter-field">Experience level<select value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)}><option value="">Any experience</option>{EXPERIENCE_LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}</select></label>
             <label className="filter-field">Application deadline<select value={deadline} onChange={(e) => setDeadline(e.target.value)}><option value="">Any deadline</option><option value="7days">Closing within 7 days</option><option value="30days">Closing within 30 days</option><option value="none">No deadline specified</option></select></label>
           </div>
           {salaryMin && salaryMax && Number(salaryMin) > Number(salaryMax) && <p className="filter-error" role="alert">Minimum pay cannot exceed maximum pay.</p>}
-          {(salaryMin || salaryMax) && <p className="filter-hint">Salary filters only match structured salary data in the selected currency and period; free-text pay is never guessed.</p>}
+          {(salaryMin || salaryMax) && <p className="filter-hint">Salary filters only match structured ranges in the selected currency. Entering both values on a posted job is required; free-text pay is never guessed.</p>}
         </details>
         {/* Kept out of the scrollable rows above: it is the filter that decides
             whether a listing is a verified employer, so it must be reachable

@@ -33,6 +33,7 @@ export default function Post() {
     const salaryMax = v("salaryMax") ? Number(v("salaryMax")) : null;
     if (salaryMin !== null && (!Number.isFinite(salaryMin) || salaryMin < 0)) err.salaryMin = "Enter a valid non-negative amount.";
     if (salaryMax !== null && (!Number.isFinite(salaryMax) || salaryMax < 0)) err.salaryMax = "Enter a valid non-negative amount.";
+    if ((salaryMin === null) !== (salaryMax === null)) err.salaryMax = "Enter both salary amounts, or leave both blank.";
     if (salaryMin !== null && salaryMax !== null && salaryMin > salaryMax) err.salaryMax = "Maximum pay must be at least the minimum.";
     if (v("deadline") && !/^\d{4}-\d{2}-\d{2}$/.test(v("deadline"))) err.deadline = "Choose a valid closing date.";
     if (v("summary").length < 20) err.summary = "Describe the work in at least 20 characters.";

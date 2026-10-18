@@ -28,6 +28,7 @@ create table if not exists public.jobs (
   created_at timestamptz not null default now(),
   published_at timestamptz,
   constraint jobs_has_contact check (phone is not null or whatsapp is not null or email is not null),
+  constraint jobs_salary_range_pair_valid check ((salary_min is null and salary_max is null) or (salary_min is not null and salary_max is not null)),
   constraint jobs_salary_range_valid check (salary_min is null or salary_max is null or salary_max >= salary_min),
   constraint jobs_salary_nonnegative check ((salary_min is null or salary_min >= 0) and (salary_max is null or salary_max >= 0)),
   constraint jobs_pay_period_valid check (pay_period is null or pay_period in ('Hourly','Daily','Weekly','Monthly','Yearly','Contract')),
@@ -44,6 +45,7 @@ alter table public.jobs add column if not exists experience_level text;
 alter table public.jobs add column if not exists application_deadline date;
 do $constraints$
 begin
+  if not exists (select 1 from pg_constraint where conname = 'jobs_salary_range_pair_valid') then alter table public.jobs add constraint jobs_salary_range_pair_valid check ((salary_min is null and salary_max is null) or (salary_min is not null and salary_max is not null)); end if;
   if not exists (select 1 from pg_constraint where conname = 'jobs_salary_range_valid') then alter table public.jobs add constraint jobs_salary_range_valid check (salary_min is null or salary_max is null or salary_max >= salary_min); end if;
   if not exists (select 1 from pg_constraint where conname = 'jobs_salary_nonnegative') then alter table public.jobs add constraint jobs_salary_nonnegative check ((salary_min is null or salary_min >= 0) and (salary_max is null or salary_max >= 0)); end if;
   if not exists (select 1 from pg_constraint where conname = 'jobs_pay_period_valid') then alter table public.jobs add constraint jobs_pay_period_valid check (pay_period is null or pay_period in ('Hourly','Daily','Weekly','Monthly','Yearly','Contract')); end if;
