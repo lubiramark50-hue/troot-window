@@ -10,6 +10,7 @@ const More = lazy(() => import("./screens/More").then((module) => ({ default: mo
 const Legal = lazy(() => import("./screens/More").then((module) => ({ default: module.Legal })));
 const Detail = lazy(() => import("./screens/Detail"));
 const Post = lazy(() => import("./screens/Post"));
+const Admin = lazy(() => import("./screens/Admin"));
 
 function Tabs() {
   const { pathname } = useLocation();
@@ -105,6 +106,7 @@ export default function App() {
         <Route path="/safety" element={<More />} />
         <Route path="/jobs/:id" element={<Detail />} />
         <Route path="/post" element={<Post />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/legal/:kind" element={<Legal />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -368,3 +368,15 @@ revoke all on function public.reports_before_insert() from public, anon, authent
 -- Maintenance and trigger functions are not public RPC endpoints.
 revoke all on function public.jobs_before_update() from public, anon, authenticated;
 revoke all on function public.close_expired_jobs() from public, anon, authenticated;
+
+-- Moderation is available only to accounts with a server-managed app_metadata.role claim.
+-- Users cannot grant themselves this claim through user_metadata or the public client.
+drop policy if exists "admins review all jobs" on public.jobs;
+create policy "admins review all jobs" on public.jobs for select to authenticated
+  using ((auth.jwt()->'app_metadata'->>'role') = 'admin');
+drop policy if exists "admins moderate jobs" on public.jobs;
+create policy "admins moderate jobs" on public.jobs for update to authenticated
+  using ((auth.jwt()->'app_metadata'->>'role') = 'admin')
+  with check ((auth.jwt()->'app_metadata'->>'role') = 'admin');
+grant update (status) on public.jobs to authenticated;
+

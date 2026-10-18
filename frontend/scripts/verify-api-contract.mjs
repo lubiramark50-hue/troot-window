@@ -35,3 +35,11 @@ const sqlLower = sql.toLowerCase();
 for (const token of ["revoke all on function public.jobs_before_insert() from public, anon, authenticated", "revoke all on function public.reports_before_insert() from public, anon, authenticated"]) {
   if (!sqlLower.includes(token)) throw new Error("Trigger RPC privilege hardening missing: " + token);
 }
+
+for (const token of ["admins review all jobs", "admins moderate jobs", "auth.jwt()->'app_metadata'->>'role'", "grant update (status) on public.jobs to authenticated"]) {
+  if (!sql.toLowerCase().includes(token.toLowerCase())) throw new Error("Admin moderation RLS missing: " + token);
+}
+const admin = readFileSync(new URL("../src/screens/Admin.tsx", import.meta.url), "utf8");
+for (const token of ["signInWithPassword", "app_metadata", "pending_review", "published", "rejected"]) {
+  if (!admin.includes(token)) throw new Error("Admin moderation flow missing: " + token);
+}
