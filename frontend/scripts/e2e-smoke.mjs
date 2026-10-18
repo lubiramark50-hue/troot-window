@@ -64,7 +64,7 @@ try {
   await page.screenshot({ path: `${out}/admin-login.png`, fullPage: true });
 
   if (pageErrors.length) throw new Error(`Uncaught browser errors: ${pageErrors.join(" | ")}`);
-  console.log("PASS: desktop layout, search, period URL sync, invalid salary URL sanitization, mobile overflow, empty-form validation, and messages page.");
+  console.log("PASS: desktop layout, search, period URL sync, invalid salary URL sanitization, mobile overflow, empty-form validation, messages page, and admin access screen.");
 } finally {
   await browser.close();
 }
