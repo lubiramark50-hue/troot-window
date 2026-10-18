@@ -28,6 +28,11 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm install --no-audit --no-fund
+      - name: Report dependency advisories
+        working-directory: frontend
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node scripts/report-npm-audit.mjs /tmp/npm-audit.json
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
