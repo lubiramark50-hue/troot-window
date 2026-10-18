@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
-import { CheckCircle2, Clock3, LogOut, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, LogOut, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { supabase } from "../supabase";
 import { TopBar, timeAgo } from "../ui";
 
