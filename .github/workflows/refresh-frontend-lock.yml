@@ -1,0 +1,45 @@
+name: Refresh frontend lockfile
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type LOCK to generate, test and commit frontend/package-lock.json on the selected branch
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lock:
+    if: inputs.confirm == 'LOCK'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install and generate lockfile
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Verify dependency audit
+        working-directory: frontend
+        run: npm audit --audit-level=high
+      - name: Verify frontend build and contract tests
+        working-directory: frontend
+        run: npm run build && npm run test:contract
+      - name: Commit lockfile to selected branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/package-lock.json
+          if git diff --cached --quiet; then
+            echo 'Lockfile already matches package.json; no commit needed.'
+            exit 0
+          fi
+          git commit -m 'chore: lock frontend dependencies'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
