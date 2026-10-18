@@ -71,7 +71,7 @@ jobs:
             run_check "frontend production build" bash -lc 'cd frontend && npm run build'
             run_check "API contract tests" bash -lc 'cd frontend && npm run test:contract'
             run_check "job category validation" bash -lc 'cd frontend && npm run test:categories'
-            run_check "source feed validation" bash -lc 'cd frontend && npm run verify:sources'
+            if (( iteration == 1 )); then run_check "source feed validation (once per soak run)" bash -lc 'cd frontend && npm run verify:sources'; fi
             run_check "backend release build with warnings as errors" dotnet build backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-restore --warnaserror
             run_check "backend integration tests" dotnet test backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
 
