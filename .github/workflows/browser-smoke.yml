@@ -33,6 +33,9 @@ jobs:
         run: |
           npm audit --json > /tmp/npm-audit.json || true
           node scripts/report-npm-audit.mjs /tmp/npm-audit.json
+      - name: Validate Capacitor Android asset sync
+        working-directory: frontend
+        run: npm run cap:sync
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
