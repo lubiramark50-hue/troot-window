@@ -1,7 +1,7 @@
 -- Troot Window: Supabase schema, RLS and abuse controls.
--- Already applied to project wftjesokdmjzixshjcwf. Safe to re-run.
--- Jobs publish immediately. Guards: per-network rate limits, duplicate
--- blocking, server-controlled status/verification and a 30-day expiry.
+-- Idempotent source of truth for project wftjesokdmjzixshjcwf; apply after schema changes.
+-- Public employer submissions are held for review; trusted-source imports publish automatically.
+-- Guards: per-network rate limits, duplicate blocking, server-controlled status/verification and 30-day expiry.
 
 create table if not exists public.jobs (
   id uuid primary key default gen_random_uuid(),
@@ -364,3 +364,7 @@ end $do$;
 -- Remove default PUBLIC execute grants so untrusted callers cannot invoke the SECURITY DEFINER bodies.
 revoke all on function public.jobs_before_insert() from public, anon, authenticated;
 revoke all on function public.reports_before_insert() from public, anon, authenticated;
+
+-- Maintenance and trigger functions are not public RPC endpoints.
+revoke all on function public.jobs_before_update() from public, anon, authenticated;
+revoke all on function public.close_expired_jobs() from public, anon, authenticated;
