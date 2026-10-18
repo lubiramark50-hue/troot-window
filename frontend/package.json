@@ -15,7 +15,8 @@
     "sync:jobs": "node scripts/ingest-jobs.mjs",
     "sync:jobs:dry": "node scripts/ingest-jobs.mjs --dry-run",
     "icons": "node scripts/build-icons.mjs && npx capacitor-assets generate --android",
-    "test:logic": "node scripts/test-job-logic.mjs"
+    "test:logic": "node scripts/test-job-logic.mjs",
+    "test:e2e": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -35,6 +36,7 @@
     "typescript": "^5.9.0",
     "vite": "^7.1.0",
     "@capacitor/assets": "^3.0.5",
-    "sharp": "^0.34.0"
+    "sharp": "^0.34.0",
+    "playwright": "^1.56.1"
   }
 }
