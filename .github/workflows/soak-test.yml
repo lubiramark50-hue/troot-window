@@ -75,31 +75,7 @@ jobs:
             run_check "backend release build with warnings as errors" dotnet build backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-restore --warnaserror
             run_check "backend integration tests" dotnet test backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
 
-            run_check "draft preview HTTP and asset smoke test" bash -lc '
-              set -euo pipefail
-              test -n "$PREVIEW_URL"
-              curl --fail --silent --show-error --location --max-time 20 "$PREVIEW_URL" -o /tmp/troot-index.html
-              grep -Eqi "<html|<!doctype html" /tmp/troot-index.html
-              python3 - <<'"'"'PY'"'"'
-          import re
-          from pathlib import Path
-          html = Path("/tmp/troot-index.html").read_text(errors="replace")
-          assets = sorted(set(re.findall(r"""(?:src|href)=["\x27]([^"\x27]+\.(?:js|css)(?:\?[^"\x27]*)?)["\x27]""", html)))
-          assets = [a for a in assets if a.startswith("/") or a.startswith("https://")]
-          if not assets:
-              raise SystemExit("No JavaScript or CSS asset references found in draft preview HTML")
-          Path("/tmp/troot-assets.txt").write_text("\n".join(assets))
-          print("Asset references found:", len(assets))
-          PY
-              while IFS= read -r asset; do
-                case "$asset" in
-                  http://*|https://*) asset_url="$asset" ;;
-                  /*) asset_url="${PREVIEW_URL%/}$asset" ;;
-                  *) asset_url="${PREVIEW_URL%/}/$asset" ;;
-                esac
-                curl --fail --silent --show-error --location --max-time 20 "$asset_url" -o /dev/null
-              done < /tmp/troot-assets.txt
-            '
+            run_check "draft preview HTTP and asset smoke test" bash .github/scripts/preview-smoke.sh "$PREVIEW_URL"
             elapsed=$((SECONDS - started))
             echo "Iteration $iteration complete; elapsed=${elapsed}s; failures=${failures}" | tee -a "$log"
             if (( SECONDS < deadline )); then sleep 20; fi
