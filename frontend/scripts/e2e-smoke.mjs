@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 
 const base = process.env.PREVIEW_URL;
 if (!base || !/^https:\/\//i.test(base)) throw new Error("PREVIEW_URL must be an HTTPS draft URL.");
+const baseUrl = base.endsWith("/") ? base.slice(0, -1) : base;
 const out = "test-results";
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true });
@@ -27,7 +28,7 @@ try {
   // The period filter is independent of salary bounds and must round-trip in the URL.
   await page.getByRole("button", { name: "Clear filters" }).first().click();
   await page.waitForFunction(() => !new URL(window.location.href).searchParams.has("period"), null, { timeout: 10000 });
-  await page.goto(`${base.replace(/\/$/, "")}/?smin=-10&smax=Infinity&period=Monthly`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/?smin=-10&smax=Infinity&period=Monthly`, { waitUntil: "domcontentloaded" });
   await page.locator(".workspace").waitFor({ state: "visible" });
   await page.locator("details.advanced-filters summary").click();
   if (await page.getByLabel("Minimum pay").inputValue() !== "") throw new Error("Negative salary query parameter was not sanitized.");
@@ -44,19 +45,19 @@ try {
   await page.screenshot({ path: `${out}/mobile-home.png`, fullPage: true });
 
   // Invalid form submission must show validation errors and must not create a job.
-  await page.goto(`${base.replace(/\/$/, "")}/post`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/post`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Post job", exact: true }).click();
   const alertCount = await page.locator('[role="alert"]').count();
   if (alertCount < 1) throw new Error("Empty job form did not display validation errors.");
   await page.screenshot({ path: `${out}/post-validation.png`, fullPage: true });
 
   // Messaging page should render without creating or sending any messages.
-  await page.goto(`${base.replace(/\/$/, "")}/messages`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/messages`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Messages" }).waitFor({ state: "visible" });
   await page.screenshot({ path: `${out}/messages.png`, fullPage: true });
 
   // Admin route must render a restricted sign-in screen without an account and must not expose pending jobs publicly.
-  await page.goto(`${base.replace(/\/$/, "")}/admin`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/admin`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Review job submissions" }).waitFor({ state: "visible" });
   await page.getByLabel("Email").waitFor({ state: "visible" });
   await page.getByLabel("Password").waitFor({ state: "visible" });
