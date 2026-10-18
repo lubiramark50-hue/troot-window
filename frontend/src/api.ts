@@ -112,6 +112,7 @@ const withTimeout = <T,>(p: PromiseLike<T>): Promise<T> =>
   Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("abort")), TIMEOUT_MS))]);
 // Strip characters that carry meaning inside PostgREST filter strings.
 const cleanTerm = (q: string) => q.replace(/[%*,()"\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export const jobsApi = {
   async list(p: { q?: string; location?: string; category?: string; mode?: string; verified?: boolean; salaryMin?: number; salaryMax?: number; salaryCurrency?: string; payPeriod?: string; experienceLevel?: string; deadline?: string; page?: number; pageSize?: number }): Promise<JobsPage> {
@@ -136,11 +137,12 @@ export const jobsApi = {
       if (p.payPeriod) query = query.eq("pay_period", p.payPeriod);
       if (p.salaryMin !== undefined) query = query.gte("salary_max", p.salaryMin);
       if (p.salaryMax !== undefined) query = query.lte("salary_min", p.salaryMax);
-      const today = new Date().toISOString().slice(0, 10);
+      const todayDate = new Date();
+      const today = localDateKey(todayDate);
       if (p.deadline === "none") query = query.is("application_deadline", null);
       else if (p.deadline === "7days" || p.deadline === "30days") {
-        const end = new Date(); end.setUTCDate(end.getUTCDate() + (p.deadline === "7days" ? 7 : 30));
-        query = query.gte("application_deadline", today).lte("application_deadline", end.toISOString().slice(0, 10));
+        const end = new Date(); end.setDate(end.getDate() + (p.deadline === "7days" ? 7 : 30));
+        query = query.gte("application_deadline", today).lte("application_deadline", localDateKey(end));
       }
       return query
         .order("employer_verified", { ascending: false })
