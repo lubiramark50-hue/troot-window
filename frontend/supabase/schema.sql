@@ -11,6 +11,12 @@ create table if not exists public.jobs (
   category text not null check (category in ('Construction','Technology','Trades','Hospitality','Transport','Other')),
   mode text not null check (mode in ('OnSite','Hybrid','Remote')),
   pay text not null check (char_length(pay) between 1 and 120),
+  salary_min numeric(14,2),
+  salary_max numeric(14,2),
+  salary_currency text not null default 'UGX',
+  pay_period text,
+  experience_level text,
+  application_deadline date,
   description text not null check (char_length(description) between 20 and 5000),
   requirements text not null check (char_length(requirements) between 2 and 1000),
   phone text check (phone is null or phone ~ '^\+?[0-9 ()-]{7,20}$'),
@@ -21,8 +27,29 @@ create table if not exists public.jobs (
   submitter_hash text,
   created_at timestamptz not null default now(),
   published_at timestamptz,
-  constraint jobs_has_contact check (phone is not null or whatsapp is not null or email is not null)
+  constraint jobs_has_contact check (phone is not null or whatsapp is not null or email is not null),
+  constraint jobs_salary_range_valid check (salary_min is null or salary_max is null or salary_max >= salary_min),
+  constraint jobs_salary_nonnegative check ((salary_min is null or salary_min >= 0) and (salary_max is null or salary_max >= 0)),
+  constraint jobs_pay_period_valid check (pay_period is null or pay_period in ('Hourly','Daily','Weekly','Monthly','Yearly','Contract')),
+  constraint jobs_experience_level_valid check (experience_level is null or experience_level in ('Entry level','Junior','Mid-level','Senior','Lead / Manager')),
+  constraint jobs_salary_currency_valid check (salary_currency in ('UGX','USD','KES','TZS','RWF','ZAR','GBP','EUR'))
 );
+
+-- Additive, idempotent upgrade for an already-created jobs table.
+alter table public.jobs add column if not exists salary_min numeric(14,2);
+alter table public.jobs add column if not exists salary_max numeric(14,2);
+alter table public.jobs add column if not exists salary_currency text not null default 'UGX';
+alter table public.jobs add column if not exists pay_period text;
+alter table public.jobs add column if not exists experience_level text;
+alter table public.jobs add column if not exists application_deadline date;
+do $constraints$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'jobs_salary_range_valid') then alter table public.jobs add constraint jobs_salary_range_valid check (salary_min is null or salary_max is null or salary_max >= salary_min); end if;
+  if not exists (select 1 from pg_constraint where conname = 'jobs_salary_nonnegative') then alter table public.jobs add constraint jobs_salary_nonnegative check ((salary_min is null or salary_min >= 0) and (salary_max is null or salary_max >= 0)); end if;
+  if not exists (select 1 from pg_constraint where conname = 'jobs_pay_period_valid') then alter table public.jobs add constraint jobs_pay_period_valid check (pay_period is null or pay_period in ('Hourly','Daily','Weekly','Monthly','Yearly','Contract')); end if;
+  if not exists (select 1 from pg_constraint where conname = 'jobs_experience_level_valid') then alter table public.jobs add constraint jobs_experience_level_valid check (experience_level is null or experience_level in ('Entry level','Junior','Mid-level','Senior','Lead / Manager')); end if;
+  if not exists (select 1 from pg_constraint where conname = 'jobs_salary_currency_valid') then alter table public.jobs add constraint jobs_salary_currency_valid check (salary_currency in ('UGX','USD','KES','TZS','RWF','ZAR','GBP','EUR')); end if;
+end $constraints$;
 
 create table if not exists public.job_reports (
   id uuid primary key default gen_random_uuid(),
@@ -139,7 +166,8 @@ end $$;
 create or replace function public.close_expired_jobs() returns void
 language sql security definer set search_path = public as $$
   update public.jobs set status = 'closed'
-  where status = 'published' and expires_at < now();
+  where status = 'published'
+    and (expires_at < now() or (application_deadline is not null and application_deadline < current_date));
 $$;
 
 -- Synced listings that have disappeared from their source feed are closed, so
@@ -297,10 +325,12 @@ revoke all on public.jobs from anon, authenticated;
 revoke all on public.job_reports from anon, authenticated;
 grant select (id, title, employer_name, location, category, mode, pay, description, requirements,
               phone, whatsapp, email, employer_verified, status, created_at, published_at, expires_at,
-              source, source_url, company_domain)
+              source, source_url, company_domain, salary_min, salary_max, salary_currency, pay_period,
+              experience_level, application_deadline)
   on public.jobs to anon, authenticated;
 grant insert (title, employer_name, location, category, mode, pay, description, requirements,
-              phone, whatsapp, email)
+              phone, whatsapp, email, salary_min, salary_max, salary_currency, pay_period,
+              experience_level, application_deadline)
   on public.jobs to anon, authenticated;
 grant insert (job_id, reason, details) on public.job_reports to anon, authenticated;
 -- Lets the job_reports RLS check confirm the job is published without exposing other columns.

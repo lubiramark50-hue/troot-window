@@ -64,6 +64,9 @@ export default function Detail() {
         <div><MapPin size={18} /><span>Location</span><b>{job.location}</b></div>
         <div><Laptop size={18} /><span>Work type</span><b>{modeLabel(job.mode)}</b></div>
         <div><Briefcase size={18} /><span>Category</span><b>{job.category}</b></div>
+        {job.salaryMin != null && <div><Wallet size={18} /><span>Structured pay range</span><b>{job.salaryCurrency} {job.salaryMin.toLocaleString()}{job.salaryMax != null ? ` – ${job.salaryMax.toLocaleString()}` : "+"}{job.payPeriod ? ` / ${job.payPeriod.toLowerCase()}` : ""}</b></div>}
+        {job.experienceLevel && <div><Briefcase size={18} /><span>Experience</span><b>{job.experienceLevel}</b></div>}
+        {job.applicationDeadline && <div><CheckCircle2 size={18} /><span>Apply by</span><b>{job.applicationDeadline}</b></div>}
       </div>
       <section><h3>About the job</h3><p className="prose">{job.description}</p></section>
       <section><h3>Requirements</h3><ul className="req">{splitReq(job.requirements).map((r) => <li key={r}><CheckCircle2 size={17} />{r}</li>)}</ul></section>

@@ -337,3 +337,25 @@ legend{padding:0 6px;font-weight:700;font-size:14px;color:var(--blue-700)}
 .filter-summary button:hover{text-decoration:underline}
 .message-empty .btn{justify-self:start;min-height:38px;height:40px;font-size:12px}
 @media(max-width:760px){.location-filter{margin-top:9px}.filter-summary{margin-top:10px}.filter-summary span{min-width:0}.filter-summary button{white-space:nowrap}}
+
+
+/* Advanced job filters: compact on desktop and easy to use on small Android screens. */
+.advanced-filters{margin-top:12px;border:1px solid var(--line);border-radius:13px;background:var(--surface);overflow:hidden}
+.advanced-filters>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;cursor:pointer;list-style:none;font-weight:750;color:var(--ink);font-size:13px}
+.advanced-filters>summary::-webkit-details-marker{display:none}
+.advanced-filters>summary:after{content:"+";font-size:19px;color:var(--blue-700);line-height:1}
+.advanced-filters[open]>summary:after{content:"−"}
+.advanced-filters>summary span{font-size:11px;font-weight:500;color:var(--muted);text-align:right}
+.advanced-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 12px 12px}
+.filter-field{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:11px;font-weight:700;color:var(--muted)}
+.filter-field input,.filter-field select{width:100%;min-width:0;min-height:42px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);padding:9px 10px;font:inherit;font-size:13px;outline-offset:2px}
+.filter-field input:focus,.filter-field select:focus{border-color:var(--blue-700)}
+.filter-error{margin:0 12px 10px;color:var(--danger,#b42318);font-size:12px;font-weight:650}
+.filter-hint{margin:0 12px 12px;color:var(--muted);font-size:11px;line-height:1.5}
+.job-structured-meta{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 0;color:var(--muted);font-size:11px}
+.job-structured-meta span{border:1px solid var(--line);border-radius:999px;padding:3px 7px}
+.salary-structure{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:14px}
+.salary-structure legend{padding:0 5px;font-size:13px;font-weight:750}
+.form-hint{margin:0 0 12px;color:var(--muted);font-size:12px;line-height:1.5}
+@media(max-width:760px){.advanced-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.advanced-filters>summary{align-items:flex-start}.advanced-filters>summary span{max-width:48%}}
+@media(max-width:380px){.advanced-filter-grid{grid-template-columns:minmax(0,1fr)}.advanced-filters>summary{flex-wrap:wrap}.advanced-filters>summary span{text-align:left;max-width:100%}}
