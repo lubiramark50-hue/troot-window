@@ -9,12 +9,13 @@
     "cap:sync": "npm run build && (test -d android || npx cap add android) && npm run icons && npx cap sync android",
     "cap:open": "npx cap open android",
     "cap:build": "npm run cap:sync && npx cap build android",
-    "test:contract": "node scripts/verify-api-contract.mjs",
+    "test:contract": "node scripts/verify-api-contract.mjs && node scripts/test-job-logic.mjs",
     "test:categories": "node scripts/verify-categories.mjs",
     "verify:sources": "node scripts/verify-sources.mjs",
     "sync:jobs": "node scripts/ingest-jobs.mjs",
     "sync:jobs:dry": "node scripts/ingest-jobs.mjs --dry-run",
-    "icons": "node scripts/build-icons.mjs && npx capacitor-assets generate --android"
+    "icons": "node scripts/build-icons.mjs && npx capacitor-assets generate --android",
+    "test:logic": "node scripts/test-job-logic.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

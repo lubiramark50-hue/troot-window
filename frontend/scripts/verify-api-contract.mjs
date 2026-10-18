@@ -20,3 +20,18 @@ for (const token of ["salaryMin", "salaryMax", "experienceLevel", "applicationDe
   if (!post.includes(token)) throw new Error("Job posting field missing: " + token);
 }
 console.log("Supabase and structured job-filter contract checks passed.");
+
+const detail = readFileSync(new URL("../src/screens/Detail.tsx", import.meta.url), "utf8");
+for (const token of ["safeHttpUrl", "href={originalUrl}"]) {
+  if (!detail.includes(token)) throw new Error("Safe original-listing URL handling missing: " + token);
+}
+for (const token of ["requestGeneration.current", "normalizeSalaryParam(params.get(\"smin\"))", "period: payPeriod", "invalidSalaryRange"]) {
+  if (!feed.includes(token)) throw new Error("Filter race/URL validation missing: " + token);
+}
+for (const token of ["isValidDateKey", "isDateKeyBeforeToday", "localDateKey(new Date())", "Job submitted for review"]) {
+  if (!post.includes(token)) throw new Error("Posting validation/review state missing: " + token);
+}
+const sqlLower = sql.toLowerCase();
+for (const token of ["revoke all on function public.jobs_before_insert() from public, anon, authenticated", "revoke all on function public.reports_before_insert() from public, anon, authenticated"]) {
+  if (!sqlLower.includes(token)) throw new Error("Trigger RPC privilege hardening missing: " + token);
+}

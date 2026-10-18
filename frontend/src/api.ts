@@ -1,4 +1,5 @@
 import { isConfigured, supabase } from "./supabase";
+import { localDateKey } from "./job-logic.js";
 
 export type WorkMode = "OnSite" | "Hybrid" | "Remote";
 export type Job = {
@@ -112,7 +113,6 @@ const withTimeout = <T,>(p: PromiseLike<T>): Promise<T> =>
   Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("abort")), TIMEOUT_MS))]);
 // Strip characters that carry meaning inside PostgREST filter strings.
 const cleanTerm = (q: string) => q.replace(/[%*,()"\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
-const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export const jobsApi = {
   async list(p: { q?: string; location?: string; category?: string; mode?: string; verified?: boolean; salaryMin?: number; salaryMax?: number; salaryCurrency?: string; payPeriod?: string; experienceLevel?: string; deadline?: string; page?: number; pageSize?: number }): Promise<JobsPage> {

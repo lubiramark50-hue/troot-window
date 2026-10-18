@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { BadgeCheck, Bookmark, CheckCircle2, ExternalLink, Flag, Mail, MapPin, MessageCircle, Phone, Share2, ShieldAlert, Wallet, Briefcase, Laptop } from "lucide-react";
 import { jobsApi, modeLabel, sourceLabel, type Job } from "../api";
 import { Avatar, splitReq, timeAgo, TopBar, useSaved, useToast } from "../ui";
+import { safeHttpUrl } from "../job-logic.js";
 
 export default function Detail() {
   const { id = "" } = useParams();
@@ -26,6 +27,7 @@ export default function Detail() {
 
   const on = saved.has(job.id);
   const digits = job.whatsApp?.replace(/[^0-9]/g, "");
+  const originalUrl = safeHttpUrl(job.sourceUrl);
   const msg = encodeURIComponent("Hello, I found your " + job.title + " job on Troot Window and would like to apply. Please share the next steps.");
 
   const share = async () => {
@@ -56,7 +58,7 @@ export default function Detail() {
           <h2>{job.title}</h2>
           <p className="sub">{job.employerName}{job.employerVerified && <span className="badge-ok"><BadgeCheck size={14} />Verified</span>}</p>
           <p className="ago">Posted {timeAgo(job.publishedAt ?? job.createdAt)}</p>
-          {job.sourceUrl && <p className="via-line">Listed on {sourceLabel(job.source)}</p>}
+          {originalUrl && <p className="via-line">Listed on {sourceLabel(job.source)}</p>}
         </div>
       </div>
       <div className="facts">
@@ -70,13 +72,13 @@ export default function Detail() {
       </div>
       <section><h3>About the job</h3><p className="prose">{job.description}</p></section>
       <section><h3>Requirements</h3><ul className="req">{splitReq(job.requirements).map((r) => <li key={r}><CheckCircle2 size={17} />{r}</li>)}</ul></section>
-      {job.sourceUrl && <p className="source-note">This vacancy was published by {job.employerName} and collected from {sourceLabel(job.source)}. Apply on the original posting, and check the details there before sharing anything.</p>}
+      {originalUrl && <p className="source-note">This vacancy was published by {job.employerName} and collected from {sourceLabel(job.source)}. Apply on the original posting, and check the details there before sharing anything.</p>}
       <aside className="notice"><ShieldAlert size={20} /><p><b>Stay safe.</b> Never pay to get a job. Do not share passwords, OTPs or bank details.</p></aside>
       <button className="report-btn" onClick={report} disabled={reporting || reported}><Flag size={15} />{reported ? "Report received" : reporting ? "Sending report" : "Report this job"}</button>
     </div>
     <div className="actionbar">
       <Link className="btn btn-primary grow" to={"/messages?job=" + encodeURIComponent(job.id)}><MessageCircle size={19} />Message employer</Link>
-      {job.sourceUrl && <a className="btn btn-soft grow" href={job.sourceUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={19} />Original listing</a>}
+      {originalUrl && <a className="btn btn-soft grow" href={originalUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={19} />Original listing</a>}
       {digits && <a className="btn btn-green grow" href={"https://wa.me/" + digits + "?text=" + msg} rel="noopener noreferrer"><MessageCircle size={19} />WhatsApp</a>}
       {job.phone && <a className="btn btn-soft grow" href={"tel:" + job.phone.replace(/[^0-9+]/g, "")}><Phone size={19} />Call</a>}
       {job.email && <a className="btn btn-soft icon-only" aria-label="Email employer" href={"mailto:" + job.email + "?subject=" + encodeURIComponent("Application: " + job.title) + "&body=" + msg}><Mail size={19} /></a>}
