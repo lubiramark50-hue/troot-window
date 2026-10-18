@@ -17,7 +17,7 @@ try {
   await page.screenshot({ path: `${out}/desktop-home.png`, fullPage: true });
 
   // Search and category filters must remain usable when the result list is empty.
-  await page.getByRole("textbox", { name: "Search jobs" }).fill("troot-e2e-no-match-9f21");
+  await page.getByRole("searchbox", { name: "Search jobs" }).fill("troot-e2e-no-match-9f21");
   await page.getByText("No jobs match", { exact: true }).waitFor({ timeout: 15000 });
   await page.locator("details.advanced-filters summary").click();
   await page.getByLabel("Pay period").selectOption("Monthly");
@@ -54,6 +54,13 @@ try {
   await page.goto(`${base.replace(/\/$/, "")}/messages`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Messages" }).waitFor({ state: "visible" });
   await page.screenshot({ path: `${out}/messages.png`, fullPage: true });
+
+  // Admin route must render a restricted sign-in screen without an account and must not expose pending jobs publicly.
+  await page.goto(`${base.replace(/\/$/, "")}/admin`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "Review job submissions" }).waitFor({ state: "visible" });
+  await page.getByLabel("Email").waitFor({ state: "visible" });
+  await page.getByLabel("Password").waitFor({ state: "visible" });
+  await page.screenshot({ path: `${out}/admin-login.png`, fullPage: true });
 
   if (pageErrors.length) throw new Error(`Uncaught browser errors: ${pageErrors.join(" | ")}`);
   console.log("PASS: desktop layout, search, period URL sync, invalid salary URL sanitization, mobile overflow, empty-form validation, and messages page.");

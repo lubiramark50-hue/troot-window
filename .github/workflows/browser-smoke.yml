@@ -36,6 +36,7 @@ jobs:
         run: npm run test:e2e
       - name: Upload screenshots
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: troot-window-browser-smoke-screenshots
