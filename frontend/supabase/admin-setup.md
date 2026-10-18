@@ -10,3 +10,7 @@ The public job-posting form intentionally creates `pending_review` rows. The `/a
 4. Approve a listing only after checking its title, employer, location, description, requirements and contact information. Approval does not mark the employer as verified.
 
 Do not put a service-role key in the frontend. The SQL policies permit only a JWT with server-managed `app_metadata.role = admin` to read pending listings or update their status.
+
+## Release boundary
+
+This moderation flow is part of the unmerged feature branch. The live database's public-post behavior has been restored to match the currently deployed production UI (immediate publishing) until the feature branch is explicitly approved and deployed. Do not apply this branch's pending-review trigger/policy to production independently of the matching frontend release. Coordinate the schema and frontend rollout together.
