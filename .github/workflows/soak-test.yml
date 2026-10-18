@@ -1,0 +1,118 @@
+name: Troot Window 60-minute soak test
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: Draft preview URL to test (never production)
+        required: true
+        type: string
+        default: https://6ad487c9b69acfe8dd6fb0d9--troot-window.netlify.app
+
+permissions:
+  contents: read
+
+concurrency:
+  group: troot-window-soak-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  soak:
+    name: Repeated frontend, backend and preview smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      PREVIEW_URL: ${{ inputs.preview_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Restore backend test dependencies
+        run: dotnet restore backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj
+      - name: Run 60-minute soak cycle
+        shell: bash
+        run: |
+          set -u
+          started=$SECONDS
+          deadline=$((started + 3600))
+          iteration=0
+          failures=0
+          mkdir -p test-results
+          log=test-results/soak-test.log
+          echo "Soak test started at $(date -u +%FT%TZ)" | tee -a "$log"
+          echo "Preview target: $PREVIEW_URL" | tee -a "$log"
+
+          run_check() {
+            label="$1"
+            shift
+            echo "[$(date -u +%FT%TZ)] START $label" | tee -a "$log"
+            if "$@" >>"$log" 2>&1; then
+              echo "[$(date -u +%FT%TZ)] PASS $label" | tee -a "$log"
+            else
+              code=$?
+              failures=$((failures + 1))
+              echo "[$(date -u +%FT%TZ)] FAIL $label (exit $code; failure count $failures)" | tee -a "$log"
+            fi
+          }
+
+          while (( SECONDS < deadline )); do
+            iteration=$((iteration + 1))
+            echo "========== ITERATION $iteration (elapsed $((SECONDS-started))s) ==========" | tee -a "$log"
+            run_check "frontend production build" bash -lc 'cd frontend && npm run build'
+            run_check "API contract tests" bash -lc 'cd frontend && npm run test:contract'
+            run_check "job category validation" bash -lc 'cd frontend && npm run test:categories'
+            run_check "source feed validation" bash -lc 'cd frontend && npm run verify:sources'
+            run_check "backend release build with warnings as errors" dotnet build backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-restore --warnaserror
+            run_check "backend integration tests" dotnet test backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
+
+            run_check "draft preview HTTP and asset smoke test" bash -lc '
+              set -euo pipefail
+              test -n "$PREVIEW_URL"
+              curl --fail --silent --show-error --location --max-time 20 "$PREVIEW_URL" -o /tmp/troot-index.html
+              grep -Eqi "<html|<!doctype html" /tmp/troot-index.html
+              python3 - <<'"'"'PY'"'"'
+          import re
+          from pathlib import Path
+          html = Path("/tmp/troot-index.html").read_text(errors="replace")
+          assets = sorted(set(re.findall(r"""(?:src|href)=["\x27]([^"\x27]+\.(?:js|css)(?:\?[^"\x27]*)?)["\x27]""", html)))
+          assets = [a for a in assets if a.startswith("/") or a.startswith("https://")]
+          if not assets:
+              raise SystemExit("No JavaScript or CSS asset references found in draft preview HTML")
+          Path("/tmp/troot-assets.txt").write_text("\n".join(assets))
+          print("Asset references found:", len(assets))
+          PY
+              while IFS= read -r asset; do
+                case "$asset" in
+                  http://*|https://*) asset_url="$asset" ;;
+                  /*) asset_url="${PREVIEW_URL%/}$asset" ;;
+                  *) asset_url="${PREVIEW_URL%/}/$asset" ;;
+                esac
+                curl --fail --silent --show-error --location --max-time 20 "$asset_url" -o /dev/null
+              done < /tmp/troot-assets.txt
+            '
+            elapsed=$((SECONDS - started))
+            echo "Iteration $iteration complete; elapsed=${elapsed}s; failures=${failures}" | tee -a "$log"
+            if (( SECONDS < deadline )); then sleep 20; fi
+          done
+
+          echo "Soak test ended at $(date -u +%FT%TZ); duration=$((SECONDS-started))s; iterations=$iteration; failures=$failures" | tee -a "$log"
+          printf 'iterations=%s\nduration_seconds=%s\nfailures=%s\n' "$iteration" "$((SECONDS-started))" "$failures" > test-results/summary.txt
+          if (( failures > 0 )); then exit 1; fi
+      - name: Upload soak logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: troot-window-soak-test-results
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14
