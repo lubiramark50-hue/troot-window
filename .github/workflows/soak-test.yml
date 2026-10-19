@@ -87,6 +87,7 @@ jobs:
       - name: Upload soak logs
         if: always()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: troot-window-soak-test-results
           path: test-results/
