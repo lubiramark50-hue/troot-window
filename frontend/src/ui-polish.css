@@ -81,7 +81,7 @@
   color: var(--text);
   accent-color: var(--blue-600);
 }
-.filter-field input::placeholder { color: var(--muted); opacity: .85; }
+.filter-field input::placeholder { color: var(--muted); opacity: 1; }
 
 @media (max-width: 760px) {
   .workspace .list { padding: 0; gap: 9px; }
