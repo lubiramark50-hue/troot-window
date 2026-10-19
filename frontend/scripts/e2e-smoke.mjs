@@ -95,9 +95,10 @@ await page.route("**/rest/v1/jobs**", async (route) => {
 });
 
 function relativeLuminance(hex) {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) throw new Error(`Expected a six-digit hex color, got "${hex}".`);
-  const rgb = [0, 2, 4].map((offset) => parseInt(match[1].slice(offset, offset + 2), 16) / 255);
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) throw new Error(`Expected a three- or six-digit hex color, got "${hex}".`);
+  const normalized = match[1].length === 3 ? match[1].split("").map((digit) => digit + digit).join("") : match[1];
+  const rgb = [0, 2, 4].map((offset) => parseInt(normalized.slice(offset, offset + 2), 16) / 255);
   const linear = rgb.map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
   return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
 }
