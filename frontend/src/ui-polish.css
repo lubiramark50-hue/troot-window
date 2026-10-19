@@ -1,0 +1,91 @@
+/* Troot Window UI polish: consistent desktop canvas, clear active states, and compact job cards. */
+:root {
+  --ink: var(--text);
+}
+
+/* The legacy phone shell must not constrain the desktop workspace. */
+@media (min-width: 761px) {
+  body { background: var(--bg); }
+  #root {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    box-shadow: none;
+    background: var(--bg);
+    position: relative;
+    overflow: visible;
+  }
+}
+
+/* Keep every bottom-navigation item visually consistent until it is active. */
+.tab:nth-child(3) { color: var(--muted); }
+.tab:nth-child(3) svg {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  box-shadow: none;
+}
+.tab:nth-child(3).on { color: var(--blue-600); }
+.tab:nth-child(3).on span { color: var(--blue-600); }
+
+/* Avoid double padding between the card and its linked content. */
+.workspace .list {
+  padding: 0;
+  gap: 12px;
+}
+.workspace .job-row {
+  padding: 0;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(10, 42, 94, .035);
+  transition: border-color .16s, box-shadow .16s, transform .16s;
+}
+.workspace .job-row-main {
+  min-width: 0;
+  padding: 20px 58px 20px 20px;
+  gap: 14px;
+}
+.workspace .job-row h3 {
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -.015em;
+  overflow-wrap: anywhere;
+}
+.workspace .job-row:hover {
+  border-color: var(--blue-600);
+  box-shadow: 0 10px 28px rgba(10, 42, 94, .08);
+  transform: translateY(-2px);
+}
+.workspace .job-row:focus-within {
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 3px var(--blue-100);
+}
+.workspace .pay { font-variant-numeric: tabular-nums; }
+.workspace .job-structured-meta span { line-height: 1.4; }
+
+/* Make native filter controls readable and visually correct in both themes. */
+.advanced-filters > summary { color: var(--text); }
+.filter-field input,
+.filter-field select {
+  color: var(--text);
+  accent-color: var(--blue-600);
+}
+.filter-field input::placeholder { color: var(--muted); opacity: .85; }
+
+@media (max-width: 760px) {
+  .workspace .list { padding: 0; gap: 9px; }
+  .workspace .job-row { padding: 0; border-radius: 15px; }
+  .workspace .job-row-main { padding: 14px 48px 14px 13px; gap: 10px; }
+  .workspace .job-row h3 { font-size: 15.5px; }
+  .filter-field input,
+  .filter-field select { min-height: 44px; font-size: 16px; }
+  .workspace .job-row:hover { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace .job-row { transition: none; }
+  .workspace .job-row:hover { transform: none; }
+}
