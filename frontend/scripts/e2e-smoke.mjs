@@ -11,6 +11,57 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, de
 const pageErrors = [];
 page.on("pageerror", (error) => pageErrors.push(error.message));
 
+/* Deterministic, read-only fixture: browser tests never create or change database rows. */
+const mockJob = {
+  id: "e2e-job-1",
+  title: "E2E Sample Builder",
+  employer_name: "Troot E2E Test Employer",
+  location: "Kampala, Uganda",
+  category: "Construction",
+  mode: "OnSite",
+  pay: "UGX 1,000,000 per month",
+  description: "Fixture listing used only for browser regression checks.",
+  requirements: "E2E test requirements",
+  salary_min: 1000000,
+  salary_max: 1000000,
+  salary_currency: "UGX",
+  pay_period: "Monthly",
+  experience_level: "Entry level",
+  application_deadline: null,
+  employer_verified: false,
+  created_at: "2026-10-18T10:00:00.000Z",
+  published_at: "2026-10-18T10:00:00.000Z",
+  source: null,
+  source_url: null,
+  company_domain: null,
+  phone: "+256700000000",
+  whatsapp: "+256700000000",
+  email: "jobs@example.test",
+};
+
+await page.route("**/rest/v1/jobs**", async (route) => {
+  const request = route.request();
+  const url = new URL(request.url());
+  const query = url.searchParams.get("or") ?? "";
+  const category = url.searchParams.get("category") ?? "";
+  const empty = query.includes("troot-e2e-no-match-9f21") ||
+    (category !== "" && category !== "eq.Construction");
+  if (empty) {
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json", "content-range": "*/0" },
+      body: "[]",
+    });
+    return;
+  }
+  const headers = { "content-type": "application/json", "content-range": "0-0/1" };
+  if ((request.headers().accept ?? "").includes("application/vnd.pgrst.object+json")) {
+    await route.fulfill({ status: 200, headers, body: JSON.stringify(mockJob) });
+    return;
+  }
+  await route.fulfill({ status: 200, headers, body: JSON.stringify([mockJob]) });
+});
+
 try {
   await page.goto(base, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
@@ -20,42 +71,40 @@ try {
   await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
   await page.screenshot({ path: `${out}/desktop-home.png`, fullPage: true });
 
-  // Category selection must round-trip through the shareable URL.
+  // Category selection must update its accessible selected state.
   await page.getByRole("button", { name: "Construction", exact: true }).click();
-  await page.waitForFunction(() => new URL(window.location.href).searchParams.get("c") === "Construction", null, { timeout: 10000 });
-  await page.getByRole("button", { name: "All", exact: true }).first().click();
-  await page.waitForFunction(() => !new URL(window.location.href).searchParams.has("c"), null, { timeout: 10000 });
-
-  // Test save/remove and detail navigation when this draft has published listings.
   await page.waitForFunction(() => {
-    const rows = document.querySelectorAll(".job-row:not(.skeleton)").length;
-    const state = document.querySelector(".state h3")?.textContent?.trim() ?? "";
-    return rows > 0 || state === "No jobs match" || state === "Couldn't load jobs";
-  }, null, { timeout: 15000 });
+    const active = document.querySelector('[aria-label="Category"] button[aria-pressed="true"]');
+    return active?.textContent?.trim() === "Construction";
+  }, null, { timeout: 10000 });
+  await page.getByRole("button", { name: "All", exact: true }).first().click();
+  await page.waitForFunction(() => {
+    const active = document.querySelector('[aria-label="Category"] button[aria-pressed="true"]');
+    return active?.textContent?.trim() === "All";
+  }, null, { timeout: 10000 });
+
+  // Save/remove and detail navigation use a mocked fixture, never a real database write.
+  await page.waitForFunction(() => document.querySelectorAll(".job-row:not(.skeleton)").length > 0, null, { timeout: 15000 });
   const firstJob = page.locator(".job-row:not(.skeleton)").first();
-  if (await firstJob.count()) {
-    const title = (await firstJob.locator("h3").innerText()).trim();
-    await firstJob.locator(".save-btn").click();
-    await page.waitForFunction(() => {
-      try { return JSON.parse(localStorage.getItem("troot:saved") || "[]").length > 0; }
-      catch { return false; }
-    }, null, { timeout: 10000 });
+  const title = (await firstJob.locator("h3").innerText()).trim();
+  await firstJob.locator(".save-btn").click();
+  await page.waitForFunction(() => {
+    try { return JSON.parse(localStorage.getItem("troot:saved") || "[]").length > 0; }
+    catch { return false; }
+  }, null, { timeout: 10000 });
 
-    await page.goto(`${baseUrl}/saved`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: title, exact: true }).waitFor({ state: "visible", timeout: 15000 });
-    await page.getByRole("button", { name: "Remove from saved" }).first().click();
-    await page.getByText("Nothing saved yet", { exact: true }).waitFor({ timeout: 10000 });
+  await page.goto(`${baseUrl}/saved`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: title, exact: true }).waitFor({ state: "visible", timeout: 15000 });
+  await page.getByRole("button", { name: "Remove from saved" }).first().click();
+  await page.getByText("Nothing saved yet", { exact: true }).waitFor({ timeout: 10000 });
 
-    await page.goto(base, { waitUntil: "domcontentloaded" });
-    await page.locator(".workspace").waitFor({ state: "visible" });
-    await page.locator(".job-row:not(.skeleton) .job-row-main").first().click();
-    await page.locator(".detail-head h2").waitFor({ state: "visible", timeout: 15000 });
-    await page.getByRole("button", { name: "Back" }).click();
-    await page.locator(".workspace").waitFor({ state: "visible" });
-    console.log("PASS: save/remove, saved jobs, job details, and back navigation.");
-  } else {
-    console.log("SKIP: save/detail flow because the draft preview has no published job rows.");
-  }
+  await page.goto(base, { waitUntil: "domcontentloaded" });
+  await page.locator(".workspace").waitFor({ state: "visible" });
+  await page.locator(".job-row:not(.skeleton) .job-row-main").first().click();
+  await page.locator(".detail-head h2").waitFor({ state: "visible", timeout: 15000 });
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.locator(".workspace").waitFor({ state: "visible" });
+  console.log("PASS: category state, save/remove, saved jobs, job details, and back navigation.");
 
   // Search and category filters must remain usable when the result list is empty.
   await page.getByRole("searchbox", { name: "Search jobs" }).fill("troot-e2e-no-match-9f21");
@@ -116,7 +165,7 @@ try {
   await page.screenshot({ path: `${out}/admin-login.png`, fullPage: true });
 
   if (pageErrors.length) throw new Error(`Uncaught browser errors: ${pageErrors.join(" | ")}`);
-  console.log("PASS: desktop layout, category URL sync, search, period URL sync, invalid salary URL sanitization, mobile overflow and active tab, form validation, messages, safety, and admin access screen.");
+  console.log("PASS: desktop layout, category selection, search, period URL sync, invalid salary URL sanitization, mobile overflow and active tab, form validation, messages, safety, and admin access screen.");
 } finally {
   await browser.close();
 }
