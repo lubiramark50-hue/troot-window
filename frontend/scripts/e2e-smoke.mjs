@@ -15,7 +15,47 @@ try {
   await page.goto(base, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
   await page.getByRole("heading", { name: "Find work near you" }).waitFor({ state: "visible" });
+  await page.evaluate(() => localStorage.removeItem("troot:saved"));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
   await page.screenshot({ path: `${out}/desktop-home.png`, fullPage: true });
+
+  // Category selection must round-trip through the shareable URL.
+  await page.getByRole("button", { name: "Construction", exact: true }).click();
+  await page.waitForFunction(() => new URL(window.location.href).searchParams.get("c") === "Construction", null, { timeout: 10000 });
+  await page.getByRole("button", { name: "All", exact: true }).first().click();
+  await page.waitForFunction(() => !new URL(window.location.href).searchParams.has("c"), null, { timeout: 10000 });
+
+  // Test save/remove and detail navigation when this draft has published listings.
+  await page.waitForFunction(() => {
+    const rows = document.querySelectorAll(".job-row:not(.skeleton)").length;
+    const state = document.querySelector(".state h3")?.textContent?.trim() ?? "";
+    return rows > 0 || state === "No jobs match" || state === "Couldn't load jobs";
+  }, null, { timeout: 15000 });
+  const firstJob = page.locator(".job-row:not(.skeleton)").first();
+  if (await firstJob.count()) {
+    const title = (await firstJob.locator("h3").innerText()).trim();
+    await firstJob.locator(".save-btn").click();
+    await page.waitForFunction(() => {
+      try { return JSON.parse(localStorage.getItem("troot:saved") || "[]").length > 0; }
+      catch { return false; }
+    }, null, { timeout: 10000 });
+
+    await page.goto(`${baseUrl}/saved`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: title, exact: true }).waitFor({ state: "visible", timeout: 15000 });
+    await page.getByRole("button", { name: "Remove from saved" }).first().click();
+    await page.getByText("Nothing saved yet", { exact: true }).waitFor({ timeout: 10000 });
+
+    await page.goto(base, { waitUntil: "domcontentloaded" });
+    await page.locator(".workspace").waitFor({ state: "visible" });
+    await page.locator(".job-row:not(.skeleton) .job-row-main").first().click();
+    await page.locator(".detail-head h2").waitFor({ state: "visible", timeout: 15000 });
+    await page.getByRole("button", { name: "Back" }).click();
+    await page.locator(".workspace").waitFor({ state: "visible" });
+    console.log("PASS: save/remove, saved jobs, job details, and back navigation.");
+  } else {
+    console.log("SKIP: save/detail flow because the draft preview has no published job rows.");
+  }
 
   // Search and category filters must remain usable when the result list is empty.
   await page.getByRole("searchbox", { name: "Search jobs" }).fill("troot-e2e-no-match-9f21");
@@ -33,14 +73,21 @@ try {
   await page.locator("details.advanced-filters summary").click();
   if (await page.getByLabel("Minimum pay").inputValue() !== "") throw new Error("Negative salary query parameter was not sanitized.");
   if (await page.getByLabel("Maximum pay").inputValue() !== "") throw new Error("Non-finite salary query parameter was not sanitized.");
-  await page.waitForFunction(() => { const u = new URL(window.location.href); return !u.searchParams.has("smin") && !u.searchParams.has("smax"); }, null, { timeout: 10000 });
+  await page.waitForFunction(() => {
+    const u = new URL(window.location.href);
+    return !u.searchParams.has("smin") && !u.searchParams.has("smax");
+  }, null, { timeout: 10000 });
 
   // Responsive layout should not overflow horizontally on a narrow phone viewport.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(base, { waitUntil: "domcontentloaded" });
   await page.locator(".workspace").waitFor({ state: "visible" });
   await page.locator(".tabbar").waitFor({ state: "visible" });
-  const dimensions = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+  await page.locator(".tab.on[aria-current='page']").waitFor({ state: "visible" });
+  const dimensions = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }));
   if (dimensions.scroll > dimensions.client + 1) throw new Error(`Horizontal overflow at mobile width: ${JSON.stringify(dimensions)}`);
   await page.screenshot({ path: `${out}/mobile-home.png`, fullPage: true });
 
@@ -56,7 +103,12 @@ try {
   await page.getByRole("heading", { name: "Messages" }).waitFor({ state: "visible" });
   await page.screenshot({ path: `${out}/messages.png`, fullPage: true });
 
-  // Admin route must render a restricted sign-in screen without an account and must not expose pending jobs publicly.
+  // Safety guidance must remain reachable from the public navigation.
+  await page.goto(`${baseUrl}/safety`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "Safety", exact: true }).waitFor({ state: "visible" });
+  await page.getByText("Never pay to get a job", { exact: true }).waitFor({ state: "visible" });
+
+  // Admin route must render a restricted sign-in screen without an account.
   await page.goto(`${baseUrl}/admin`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Review job submissions" }).waitFor({ state: "visible" });
   await page.getByLabel("Email").waitFor({ state: "visible" });
@@ -64,7 +116,7 @@ try {
   await page.screenshot({ path: `${out}/admin-login.png`, fullPage: true });
 
   if (pageErrors.length) throw new Error(`Uncaught browser errors: ${pageErrors.join(" | ")}`);
-  console.log("PASS: desktop layout, search, period URL sync, invalid salary URL sanitization, mobile overflow, empty-form validation, messages page, and admin access screen.");
+  console.log("PASS: desktop layout, category URL sync, search, period URL sync, invalid salary URL sanitization, mobile overflow and active tab, form validation, messages, safety, and admin access screen.");
 } finally {
   await browser.close();
 }
