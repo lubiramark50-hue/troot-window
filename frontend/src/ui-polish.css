@@ -1,6 +1,10 @@
 /* Troot Window UI polish: consistent desktop canvas, clear active states, and compact job cards. */
 :root {
   --ink: var(--text);
+  --green-600: #0D7A4A;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --green-600: #16A765; }
 }
 
 /* The legacy phone shell must not constrain the desktop workspace. */
