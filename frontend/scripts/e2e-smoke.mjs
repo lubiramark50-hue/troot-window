@@ -113,6 +113,24 @@ try {
   await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
   await page.getByRole("heading", { name: "Find work near you" }).waitFor({ state: "visible" });
 
+
+  await page.evaluate(() => localStorage.removeItem("troot:saved"));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
+  await page.screenshot({ path: `${out}/desktop-home.png`, fullPage: true });
+
+  // Category selection must update its accessible selected state.
+  await page.getByRole("button", { name: "Construction", exact: true }).click();
+  await page.waitForFunction(() => {
+    const active = [...document.querySelectorAll(".chips button")].find((button) => button.textContent?.trim() === "Construction");
+    return active?.classList.contains("on");
+  }, null, { timeout: 10000 });
+  await page.getByRole("button", { name: "All", exact: true }).first().click();
+  await page.waitForFunction(() => {
+    const active = [...document.querySelectorAll(".chips button")].find((button) => button.textContent?.trim() === "All");
+    return active?.classList.contains("on");
+  }, null, { timeout: 10000 });
+
   // Check the current branch's exact theme tokens against WCAG AA's 4.5:1 normal-text target.
   await page.emulateMedia({ colorScheme: "light" });
   const lightTokens = await page.evaluate(() => {
@@ -153,22 +171,6 @@ try {
   }
   await page.emulateMedia({ colorScheme: "light" });
   console.log("PASS: checked light/dark theme text contrast pairs.");
-  await page.evaluate(() => localStorage.removeItem("troot:saved"));
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
-  await page.screenshot({ path: `${out}/desktop-home.png`, fullPage: true });
-
-  // Category selection must update its accessible selected state.
-  await page.getByRole("button", { name: "Construction", exact: true }).click();
-  await page.waitForFunction(() => {
-    const active = [...document.querySelectorAll(".chips button")].find((button) => button.textContent?.trim() === "Construction");
-    return active?.classList.contains("on");
-  }, null, { timeout: 10000 });
-  await page.getByRole("button", { name: "All", exact: true }).first().click();
-  await page.waitForFunction(() => {
-    const active = [...document.querySelectorAll(".chips button")].find((button) => button.textContent?.trim() === "All");
-    return active?.classList.contains("on");
-  }, null, { timeout: 10000 });
 
   // Save/remove and detail navigation use a mocked fixture, never a real database write.
   await page.waitForFunction(() => document.querySelectorAll(".job-row:not(.skeleton)").length > 0, null, { timeout: 15000 });
