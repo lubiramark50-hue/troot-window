@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 
 const base = process.env.PREVIEW_URL;
 if (!base || !/^https:\/\//i.test(base)) throw new Error("PREVIEW_URL must be an HTTPS draft URL.");
@@ -10,6 +10,20 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
 const pageErrors = [];
 page.on("pageerror", (error) => pageErrors.push(error.message));
+
+/* Inject the current branch CSS into the older draft preview for DOM-level layout checks. */
+const polishCss = await readFile(new URL("../src/ui-polish.css", import.meta.url), "utf8");
+await page.addInitScript((css) => {
+  const install = () => {
+    if (document.getElementById("troot-ui-polish-test")) return;
+    const style = document.createElement("style");
+    style.id = "troot-ui-polish-test";
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install, { once: true });
+  else install();
+}, polishCss);
 
 /* Deterministic fixture: browser tests never create or change database rows. */
 const mockJob = {
@@ -80,10 +94,64 @@ await page.route("**/rest/v1/jobs**", async (route) => {
   });
 });
 
+function relativeLuminance(hex) {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) throw new Error(`Expected a six-digit hex color, got "${hex}".`);
+  const rgb = [0, 2, 4].map((offset) => parseInt(match[1].slice(offset, offset + 2), 16) / 255);
+  const linear = rgb.map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+function contrastRatio(foreground, background) {
+  const a = relativeLuminance(foreground);
+  const b = relativeLuminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
 try {
   await page.goto(base, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
   await page.getByRole("heading", { name: "Find work near you" }).waitFor({ state: "visible" });
+
+  // Check the current branch's exact theme tokens against WCAG AA's 4.5:1 normal-text target.
+  await page.emulateMedia({ colorScheme: "light" });
+  const lightTokens = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    return Object.fromEntries(["--muted", "--bg", "--surface", "--blue-50", "--green-100", "--green-600"]
+      .map((name) => [name, style.getPropertyValue(name).trim()]));
+  });
+  const lightPairs = [
+    ["light muted/background", lightTokens["--muted"], lightTokens["--bg"]],
+    ["light muted/surface", lightTokens["--muted"], lightTokens["--surface"]],
+    ["light muted/blue tint", lightTokens["--muted"], lightTokens["--blue-50"]],
+    ["light muted/green tint", lightTokens["--muted"], lightTokens["--green-100"]],
+    ["light green/background", lightTokens["--green-600"], lightTokens["--bg"]],
+    ["light green/surface", lightTokens["--green-600"], lightTokens["--surface"]],
+    ["light green/green tint", lightTokens["--green-600"], lightTokens["--green-100"]],
+  ];
+  for (const [name, foreground, background] of lightPairs) {
+    const ratio = contrastRatio(foreground, background);
+    if (ratio < 4.5) throw new Error(`${name} contrast ${ratio.toFixed(2)}:1 is below 4.5:1.`);
+  }
+  await page.emulateMedia({ colorScheme: "dark" });
+  const darkTokens = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    return Object.fromEntries(["--muted", "--bg", "--surface", "--blue-50", "--green-100", "--green-600"]
+      .map((name) => [name, style.getPropertyValue(name).trim()]));
+  });
+  const darkPairs = [
+    ["dark muted/background", darkTokens["--muted"], darkTokens["--bg"]],
+    ["dark muted/surface", darkTokens["--muted"], darkTokens["--surface"]],
+    ["dark muted/blue tint", darkTokens["--muted"], darkTokens["--blue-50"]],
+    ["dark muted/green tint", darkTokens["--muted"], darkTokens["--green-100"]],
+    ["dark green/surface", darkTokens["--green-600"], darkTokens["--surface"]],
+    ["dark green/green tint", darkTokens["--green-600"], darkTokens["--green-100"]],
+  ];
+  for (const [name, foreground, background] of darkPairs) {
+    const ratio = contrastRatio(foreground, background);
+    if (ratio < 4.5) throw new Error(`${name} contrast ${ratio.toFixed(2)}:1 is below 4.5:1.`);
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  console.log("PASS: checked light/dark theme text contrast pairs.");
   await page.evaluate(() => localStorage.removeItem("troot:saved"));
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".workspace").waitFor({ state: "visible", timeout: 30000 });
@@ -104,6 +172,24 @@ try {
   // Save/remove and detail navigation use a mocked fixture, never a real database write.
   await page.waitForFunction(() => document.querySelectorAll(".job-row:not(.skeleton)").length > 0, null, { timeout: 15000 });
   const firstJob = page.locator(".job-row:not(.skeleton)").first();
+  const desktopMetrics = await page.evaluate(() => {
+    const root = document.getElementById("root");
+    const row = document.querySelector(".job-row:not(.skeleton)");
+    const main = row?.querySelector(".job-row-main");
+    return {
+      viewport: document.documentElement.clientWidth,
+      rootWidth: root?.getBoundingClientRect().width ?? 0,
+      cardPadding: row ? getComputedStyle(row).paddingLeft : "missing",
+      contentPadding: main ? getComputedStyle(main).paddingLeft : "missing",
+    };
+  });
+  if (desktopMetrics.viewport >= 761 && desktopMetrics.rootWidth < desktopMetrics.viewport - 2) {
+    throw new Error(`Desktop root is constrained: ${JSON.stringify(desktopMetrics)}`);
+  }
+  if (desktopMetrics.cardPadding !== "0px" || desktopMetrics.contentPadding !== "20px") {
+    throw new Error(`Desktop job-card spacing is incorrect: ${JSON.stringify(desktopMetrics)}`);
+  }
+  console.log("PASS: desktop root width and job-card spacing.");
   const title = (await firstJob.locator("h3").innerText()).trim();
   await firstJob.locator(".save-btn").click();
   await page.waitForFunction(() => {
@@ -137,6 +223,10 @@ try {
   await page.getByRole("searchbox", { name: "Search jobs" }).fill("troot-e2e-no-match-9f21");
   await page.getByText("No jobs match", { exact: true }).waitFor({ timeout: 15000 });
   await page.locator("details.advanced-filters summary").click();
+  const placeholderOpacity = await page.locator(".filter-field input").first().evaluate((element) =>
+    getComputedStyle(element, "::placeholder").opacity
+  );
+  if (Number(placeholderOpacity) < 1) throw new Error("Placeholder opacity reduces muted-text contrast.");
   await page.getByLabel("Pay period").selectOption("Monthly");
   await page.waitForFunction(() => new URL(window.location.href).searchParams.get("period") === "Monthly", null, { timeout: 10000 });
   await page.screenshot({ path: `${out}/desktop-filters.png`, fullPage: true });
@@ -160,6 +250,23 @@ try {
   await page.locator(".workspace").waitFor({ state: "visible" });
   await page.locator(".tabbar").waitFor({ state: "visible" });
   await page.locator(".tab.on[aria-current='page']").waitFor({ state: "visible" });
+  await page.waitForFunction(() => document.querySelectorAll(".job-row:not(.skeleton)").length > 0, null, { timeout: 15000 });
+  const mobileMetrics = await page.evaluate(() => {
+    const root = document.getElementById("root");
+    const row = document.querySelector(".job-row:not(.skeleton)");
+    const main = row?.querySelector(".job-row-main");
+    return {
+      viewport: document.documentElement.clientWidth,
+      rootWidth: root?.getBoundingClientRect().width ?? 0,
+      cardPadding: row ? getComputedStyle(row).paddingLeft : "missing",
+      contentPadding: main ? getComputedStyle(main).paddingLeft : "missing",
+    };
+  });
+  if (mobileMetrics.rootWidth < mobileMetrics.viewport - 2 ||
+      mobileMetrics.cardPadding !== "0px" || mobileMetrics.contentPadding !== "13px") {
+    throw new Error(`Mobile layout metrics are incorrect: ${JSON.stringify(mobileMetrics)}`);
+  }
+  console.log("PASS: mobile root width and job-card spacing.");
   const dimensions = await page.evaluate(() => ({
     client: document.documentElement.clientWidth,
     scroll: document.documentElement.scrollWidth,
