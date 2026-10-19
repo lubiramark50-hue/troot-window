@@ -1,4 +1,4 @@
-name: Troot Window 60-minute soak test
+name: Troot Window 69-minute soak test
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
         description: Draft preview URL to test (never production)
         required: true
         type: string
-        default: https://6ad487c9b69acfe8dd6fb0d9--troot-window.netlify.app
+        default: https://6ad4b72e330940d50f63f702--troot-window.netlify.app
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
   soak:
     name: Repeated frontend, backend and preview smoke tests
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 80
     env:
       PREVIEW_URL: ${{ inputs.preview_url }}
     steps:
@@ -39,12 +39,12 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Restore backend test dependencies
         run: dotnet restore backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj
-      - name: Run 60-minute soak cycle
+      - name: Run 69-minute soak cycle
         shell: bash
         run: |
           set -u
           started=$SECONDS
-          deadline=$((started + 3600))
+          deadline=$((started + 4140))
           iteration=0
           failures=0
           mkdir -p test-results
@@ -74,7 +74,6 @@ jobs:
             if (( iteration == 1 )); then run_check "source feed validation (once per soak run)" bash -lc 'cd frontend && npm run verify:sources'; fi
             run_check "backend release build with warnings as errors" dotnet build backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-restore --warnaserror
             run_check "backend integration tests" dotnet test backend/TrootWindow.Api.Tests/TrootWindow.Api.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
-
             run_check "draft preview HTTP and asset smoke test" bash .github/scripts/preview-smoke.sh "$PREVIEW_URL"
             elapsed=$((SECONDS - started))
             echo "Iteration $iteration complete; elapsed=${elapsed}s; failures=${failures}" | tee -a "$log"
@@ -87,7 +86,6 @@ jobs:
       - name: Upload soak logs
         if: always()
         uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: troot-window-soak-test-results
           path: test-results/
