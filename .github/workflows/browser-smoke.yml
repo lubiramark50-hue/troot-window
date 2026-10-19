@@ -7,7 +7,7 @@ on:
         description: HTTPS draft preview URL (never production)
         required: true
         type: string
-        default: https://6ad4b101e5cd72ea7dbc1e69--troot-window.netlify.app
+        default: https://6ad4b72e330940d50f63f702--troot-window.netlify.app
 
 permissions:
   contents: read
