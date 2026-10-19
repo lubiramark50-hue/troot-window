@@ -11,7 +11,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, de
 const pageErrors = [];
 page.on("pageerror", (error) => pageErrors.push(error.message));
 
-/* Deterministic, read-only fixture: browser tests never create or change database rows. */
+/* Deterministic fixture: browser tests never create or change database rows. */
 const mockJob = {
   id: "e2e-job-1",
   title: "E2E Sample Builder",
@@ -42,6 +42,17 @@ const mockJob = {
 await page.route("**/rest/v1/jobs**", async (route) => {
   const request = route.request();
   const url = new URL(request.url());
+  const cors = {
+    "access-control-allow-origin": request.headers().origin ?? "*",
+    "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
+    "access-control-allow-headers": "authorization, apikey, content-type, x-client-info, prefer, range",
+    "access-control-expose-headers": "content-range, range, x-total-count",
+    vary: "Origin",
+  };
+  if (request.method() === "OPTIONS") {
+    await route.fulfill({ status: 204, headers: cors, body: "" });
+    return;
+  }
   const query = url.searchParams.get("or") ?? "";
   const category = url.searchParams.get("category") ?? "";
   const empty = query.includes("troot-e2e-no-match-9f21") ||
@@ -49,17 +60,24 @@ await page.route("**/rest/v1/jobs**", async (route) => {
   if (empty) {
     await route.fulfill({
       status: 200,
-      headers: { "content-type": "application/json", "content-range": "*/0" },
+      headers: { ...cors, "content-type": "application/json", "content-range": "*/0" },
       body: "[]",
     });
     return;
   }
-  const headers = { "content-type": "application/json", "content-range": "0-0/1" };
   if ((request.headers().accept ?? "").includes("application/vnd.pgrst.object+json")) {
-    await route.fulfill({ status: 200, headers, body: JSON.stringify(mockJob) });
+    await route.fulfill({
+      status: 200,
+      headers: { ...cors, "content-type": "application/vnd.pgrst.object+json" },
+      body: JSON.stringify(mockJob),
+    });
     return;
   }
-  await route.fulfill({ status: 200, headers, body: JSON.stringify([mockJob]) });
+  await route.fulfill({
+    status: 200,
+    headers: { ...cors, "content-type": "application/json", "content-range": "0-0/1" },
+    body: JSON.stringify([mockJob]),
+  });
 });
 
 try {
@@ -74,13 +92,13 @@ try {
   // Category selection must update its accessible selected state.
   await page.getByRole("button", { name: "Construction", exact: true }).click();
   await page.waitForFunction(() => {
-    const active = document.querySelector('[aria-label="Category"] button[aria-pressed="true"]');
-    return active?.textContent?.trim() === "Construction";
+    const active = [...document.querySelectorAll(".chips button")].find((button) => button.textContent?.trim() === "Construction");
+    return active?.classList.contains("on");
   }, null, { timeout: 10000 });
   await page.getByRole("button", { name: "All", exact: true }).first().click();
   await page.waitForFunction(() => {
-    const active = document.querySelector('[aria-label="Category"] button[aria-pressed="true"]');
-    return active?.textContent?.trim() === "All";
+    const active = [...document.querySelectorAll(".chips button")].find((button) => button.textContent?.trim() === "All");
+    return active?.classList.contains("on");
   }, null, { timeout: 10000 });
 
   // Save/remove and detail navigation use a mocked fixture, never a real database write.
@@ -101,7 +119,8 @@ try {
   await page.goto(base, { waitUntil: "domcontentloaded" });
   await page.locator(".workspace").waitFor({ state: "visible" });
   await page.locator(".job-row:not(.skeleton) .job-row-main").first().click();
-  await page.locator(".detail-head h2").waitFor({ state: "visible", timeout: 15000 });
+  await page.waitForURL((url) => url.pathname.endsWith("/jobs/e2e-job-1"), { timeout: 10000 });
+  await page.getByRole("heading", { name: title, exact: true }).waitFor({ state: "visible", timeout: 15000 });
   await page.getByRole("button", { name: "Back" }).click();
   await page.locator(".workspace").waitFor({ state: "visible" });
   console.log("PASS: category state, save/remove, saved jobs, job details, and back navigation.");
