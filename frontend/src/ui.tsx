@@ -6,18 +6,20 @@ import type { Job } from "./api";
 /* ---------- Brand ---------- */
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 1024 1024" aria-hidden="true" className="logo-mark">
+    <svg width={size} height={size} viewBox="0 0 80 80" aria-hidden="true" className="logo-mark">
       <defs>
-        <linearGradient id="tw-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#1B5FD1" />
-          <stop offset="1" stopColor="#0A2A5E" />
+        <linearGradient id="tw-logo-blue" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#02C8F6" /><stop offset=".54" stopColor="#107BEB" /><stop offset="1" stopColor="#063F97" />
+        </linearGradient>
+        <linearGradient id="tw-logo-green" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#058B60" /><stop offset="1" stopColor="#5CE291" />
         </linearGradient>
       </defs>
-      <rect width="1024" height="1024" rx="230" fill="url(#tw-g)" />
-      <rect x="212" y="262" width="600" height="170" rx="44" fill="#fff" />
-      <rect x="427" y="462" width="170" height="300" rx="44" fill="#fff" />
-      <rect x="212" y="462" width="185" height="300" rx="44" fill="#fff" fillOpacity=".28" />
-      <rect x="627" y="462" width="185" height="300" rx="44" fill="#22C27A" />
+      <rect width="80" height="80" rx="17" fill="#0759B7" />
+      <path d="M0 0h80v80H0z" fill="url(#tw-logo-blue)" />
+      <path d="M43 0h37v80H43l-18-19 18-18z" fill="url(#tw-logo-green)" opacity=".9" />
+      <path d="M0 0h42l29 28H0z" fill="#00BDE9" opacity=".35" />
+      <path d="M12 18h57a6 6 0 010 12H47v34a7 7 0 01-14 0V30H12a6 6 0 010-12z" fill="white" />
     </svg>
   );
 }

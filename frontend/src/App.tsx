@@ -1,8 +1,8 @@
 import { Suspense, lazy } from "react";
 import { NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck } from "lucide-react";
+import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck, Search, ArrowUpRight, Sparkles, HeartHandshake } from "lucide-react";
 import { isConfigured } from "./supabase";
-import { ToastProvider } from "./ui";
+import { LogoMark, ToastProvider } from "./ui";
 import Feed from "./screens/Feed";
 import Saved from "./screens/Saved";
 import { Legal, More } from "./screens/More";
@@ -10,32 +10,63 @@ import { Legal, More } from "./screens/More";
 const Detail = lazy(() => import("./screens/Detail"));
 const Post = lazy(() => import("./screens/Post"));
 
-function Tabs() {
-  const { pathname } = useLocation();
-  const item = (to: string, label: string, Icon: typeof Plus, end = false) => (
-    <NavLink to={to} end={end} className={({ isActive }) => `tab${isActive ? " on" : ""}`} aria-current={pathname === to ? "page" : undefined}>
-      <Icon size={22} /><span>{label}</span>
-    </NavLink>
-  );
-  return (
-    <nav className="tabbar" aria-label="Main">
-      {item("/", "Jobs", BriefcaseBusiness, true)}
-      {item("/saved", "Saved", Bookmark)}
-      {item("/post", "Post", Plus)}
-      {item("/safety", "Safety", ShieldCheck)}
-    </nav>
-  );
+const entries = [
+  { to: "/", label: "Discover jobs", Icon: Search, end: true },
+  { to: "/saved", label: "Saved jobs", Icon: Bookmark },
+  { to: "/post", label: "Post a job", Icon: Plus },
+  { to: "/safety", label: "Trust & safety", Icon: ShieldCheck },
+] as const;
+
+function Identity({ large = false }: { large?: boolean }) {
+  return <NavLink to="/" className="tw-identity" aria-label="Troot Window home">
+    <LogoMark size={large ? 42 : 32} />
+    <span className="tw-wordmark">Troot <b>Window</b></span>
+  </NavLink>;
 }
 
-const WithTabs = () => <><main className="viewport"><Outlet /></main><Tabs /></>;
+function DesktopSidebar() {
+  return <aside className="tw-sidebar">
+    <Identity large />
+    <p className="tw-side-label">YOUR WORKSPACE</p>
+    <nav className="tw-side-menu" aria-label="Desktop navigation">
+      {entries.map(({ to, label, Icon, ...props }) =>
+        <NavLink key={to} to={to} end={"end" in props ? props.end : false} className={({ isActive }) => `tw-side-link${isActive ? " active" : ""}`}>
+          <Icon size={19} strokeWidth={2} /><span>{label}</span>
+        </NavLink>)}
+    </nav>
+    <div className="tw-side-grow" />
+    <div className="tw-side-message">
+      <div className="tw-side-symbol"><HeartHandshake size={22} /></div>
+      <strong>Your next chapter starts here.</strong>
+      <p>Find genuine opportunities and connect directly with employers.</p>
+      <NavLink to="/safety">How we keep you safe <ArrowUpRight size={14} /></NavLink>
+    </div>
+    <div className="tw-side-footer"><Sparkles size={15} /> Made for brighter futures</div>
+  </aside>;
+}
+
+function MobileTabs() {
+  const { pathname } = useLocation();
+  const item = (to: string, label: string, Icon: typeof Plus, end = false) =>
+    <NavLink to={to} end={end} className={({ isActive }) => `tab${isActive ? " on" : ""}`} aria-current={pathname === to ? "page" : undefined}>
+      <Icon size={21} strokeWidth={2} /><span>{label}</span>
+    </NavLink>;
+  return <nav className="tabbar" aria-label="Main">
+    {item("/", "Jobs", BriefcaseBusiness, true)}
+    {item("/saved", "Saved", Bookmark)}
+    {item("/post", "Post", Plus)}
+    {item("/safety", "Safety", ShieldCheck)}
+  </nav>;
+}
+
+const WithTabs = () => <><main className="viewport"><Outlet /></main><MobileTabs /></>;
 const Loading = () => <div className="screen full" aria-busy="true" />;
 
 export default function App() {
-  if (!isConfigured) {
-    return <div className="state boot"><h3>Setup needed</h3><p>Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then rebuild.</p></div>;
-  }
-  return (
-    <ToastProvider>
+  if (!isConfigured) return <div className="state boot"><h3>Setup needed</h3><p>Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then rebuild.</p></div>;
+  return <ToastProvider><div className="tw-app-shell">
+    <DesktopSidebar />
+    <div className="tw-app-main">
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route element={<WithTabs />}>
@@ -49,6 +80,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-    </ToastProvider>
-  );
+    </div>
+  </div></ToastProvider>;
 }
