@@ -1,0 +1,17 @@
+/* Mobile visual review: show real job listings before supplementary categories. */
+@media (max-width:899px) {
+  .tw-home { display:flex; flex-direction:column; }
+  .tw-mobile-brand { order:0; height:66px; padding-top:12px; }
+  .tw-hero { order:1; min-height:141px; padding:19px 21px 16px; margin-top:0; margin-bottom:18px; }
+  .tw-hero .tw-eyebrow { font-size:9px; letter-spacing:.09em; margin-bottom:8px; }
+  .tw-hero h1 { font-size:clamp(23px,6vw,29px); line-height:1.11; max-width:345px; }
+  .tw-hero p, .tw-hero-cta, .tw-hero-trust { display:none; }
+  .tw-search-area { order:2; margin-bottom:22px; }
+  .tw-section-intro { margin-bottom:10px; }
+  .tw-section-intro .tw-kicker { display:none; }
+  .tw-section-intro h2 { font-size:17px; }
+  .tw-content-grid { order:3; }
+  .tw-categories { order:4; margin-top:29px; }
+  .tw-result-count { font-size:10px; }
+  .tw-results-heading h2 { font-size:19px; }
+}
