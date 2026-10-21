@@ -1,1 +1,90 @@
-{}
+{
+  "note": "Approved employers whose listings are synced from the company's own careers feed and shown as verified. Every entry below was checked live on the date in 'verifiedOn': the board must return real postings, and the employer must hire in Africa (Uganda first). Add a company only after running `npm run verify:sources`, which fails if a board stops returning listings.",
+  "verifiedOn": "2026-10-21",
+  "companies": [
+    {
+      "source": "ashby",
+      "token": "m-kopa",
+      "name": "M-KOPA",
+      "domain": "m-kopa.com",
+      "hiresIn": "Uganda, Kenya, Nigeria, Ghana, South Africa"
+    },
+    {
+      "source": "greenhouse",
+      "token": "oneacrefund",
+      "name": "One Acre Fund",
+      "domain": "oneacrefund.org",
+      "hiresIn": "Uganda (Jinja, Kampala), Kenya, Rwanda, Zambia, Malawi"
+    },
+    {
+      "source": "greenhouse",
+      "token": "educate",
+      "name": "Educate!",
+      "domain": "experienceeducate.org",
+      "hiresIn": "Uganda (Kampala), Kenya, Tanzania"
+    },
+    {
+      "source": "greenhouse",
+      "token": "jumia",
+      "name": "Jumia Group",
+      "domain": "jumia.com",
+      "hiresIn": "Uganda, Nigeria, Ghana, Kenya, Senegal, Egypt"
+    },
+    {
+      "source": "greenhouse",
+      "token": "givedirectly",
+      "name": "GiveDirectly",
+      "domain": "givedirectly.org",
+      "hiresIn": "East and West Africa programmes"
+    },
+    {
+      "source": "greenhouse",
+      "token": "moniepoint",
+      "name": "Moniepoint",
+      "domain": "moniepoint.com",
+      "hiresIn": "Nigeria, remote"
+    },
+    {
+      "source": "greenhouse",
+      "token": "ozow",
+      "name": "Ozow",
+      "domain": "ozow.com",
+      "hiresIn": "South Africa"
+    },
+    {
+      "source": "greenhouse",
+      "token": "luno",
+      "name": "Luno",
+      "domain": "luno.com",
+      "hiresIn": "South Africa, Nigeria, remote"
+    },
+    {
+      "source": "greenhouse",
+      "token": "acumen",
+      "name": "Acumen",
+      "domain": "acumen.org",
+      "hiresIn": "Africa, global"
+    },
+    {
+      "source": "workable",
+      "token": "kuda",
+      "name": "Kuda",
+      "domain": "kuda.com",
+      "hiresIn": "Nigeria"
+    },
+    {
+      "source": "workable",
+      "token": "carry1st",
+      "name": "Carry1st",
+      "domain": "carry1st.com",
+      "hiresIn": "Africa, remote"
+    },
+    {
+      "source": "ashby",
+      "token": "andela",
+      "name": "Andela",
+      "domain": "andela.com",
+      "hiresIn": "Africa, remote"
+    }
+  ]
+}
