@@ -462,3 +462,17 @@ body {background:var(--bg);font-family:Inter,"SF Pro Display",system-ui,-apple-s
 @media(prefers-reduced-motion:reduce){
   *,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+/* Readable and safely converted employer job descriptions. Remote HTML has no style access. */
+.job-copy,.job-rich-content{color:var(--text);line-height:1.72;overflow-wrap:anywhere;font-size:14.5px}
+.job-copy{white-space:pre-line;margin:0}
+.job-rich-content{display:grid;gap:11px}
+.job-rich-content :is(p,div,ul,ol,blockquote){margin:0}
+.job-rich-content :is(ul,ol){display:grid;gap:7px;padding-left:23px;list-style:disc}
+.job-rich-content ol{list-style:decimal}
+.job-rich-content li{padding-left:2px}
+.job-rich-content :is(h3,h4){font-size:15px;line-height:1.4;font-weight:750;margin:13px 0 2px}
+.job-rich-content :is(strong,b){font-weight:750}
+.job-rich-content a{color:var(--blue-600);text-decoration:underline;text-underline-offset:3px;word-break:break-word}
+.job-rich-content blockquote{border-left:3px solid var(--blue-600);padding:9px 13px;background:var(--surface);border-radius:6px}
+.job-rich-content > div{display:grid;gap:9px}

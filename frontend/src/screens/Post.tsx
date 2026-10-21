@@ -15,7 +15,7 @@ function Field({ label, hint, error, children }: { name: string; label: string; 
 export default function Post() {
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
+  const [postedId, setPostedId] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState("");
 
@@ -23,7 +23,8 @@ export default function Post() {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     const v = (k: string) => String(d.get(k) ?? "").trim();
-    if (v("website")) { setDone(true); return; } // honeypot: bots fill hidden fields
+    // The old hidden "website" honeypot was autofilled by browsers and reported
+    // a false success without sending anything. Spam limits are enforced in DB.
     const err: Errors = {};
     if (v("title").length < 3) err.title = "Enter a job title.";
     if (v("employer").length < 2) err.employer = "Enter the employer name.";
@@ -39,20 +40,20 @@ export default function Post() {
     if (Object.keys(err).length) { document.querySelector<HTMLElement>("[data-invalid='true']")?.focus(); return; }
     setBusy(true);
     try {
-      await jobsApi.create({
+      const posted = await jobsApi.create({
         title: v("title"), employerName: v("employer"), location: v("location"), category: v("category"),
         mode: v("mode") as WorkMode, pay: v("pay"), description: v("summary"), requirements: v("requirements"),
         phone: v("phone") || null, whatsApp: v("whatsapp") || null, email: v("email") || null,
       });
-      setDone(true);
+      setPostedId(posted.id);
     } catch (x) { setFormError(x instanceof Error ? x.message : "Could not submit job."); }
     finally { setBusy(false); }
   };
 
-  if (done) return (
+  if (postedId) return (
     <div className="screen full">
       <TopBar title="Post a job" />
-      <div className="state success"><span className="pop"><CheckCircle2 size={52} /></span><h3>Your job is live</h3><p>Workers can see it now and contact you directly. It stays online for 30 days.</p><button className="btn btn-primary" onClick={() => nav("/", { replace: true })}>Back to jobs</button></div>
+      <div className="state success"><span className="pop"><CheckCircle2 size={52} /></span><h3>Your job is live</h3><p>We confirmed your listing is published. Workers can see it now and contact you directly. It stays online for 30 days.</p><button className="btn btn-primary" onClick={() => nav(`/jobs/${postedId}`, { replace: true })}>View your job</button><button className="btn btn-soft" onClick={() => nav("/", { replace: true })}>Browse jobs</button></div>
     </div>
   );
 
@@ -88,7 +89,6 @@ export default function Post() {
           </div>
           <Field name="email" error={errors.email} label="Email"><input name="email" type="email" inputMode="email" maxLength={254} autoComplete="email" {...inv("email")} /></Field>
         </fieldset>
-        <input className="hp" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
       </div>
       <div className="actionbar"><button className="btn btn-primary grow" type="submit" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={18} />Posting</> : "Post job"}</button></div>
     </form>

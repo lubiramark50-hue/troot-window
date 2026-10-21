@@ -59,7 +59,9 @@ function fail(error: { message?: string; code?: string } | null | undefined): ne
   if (error?.message === "duplicate_job") throw new Error("This job was already posted today. It is already live in the feed.");
   if (error?.code === "23505") throw new Error("You have already reported this job.");
   if (error?.code === "23514" || error?.code === "22001") throw new Error("Some details are not valid. Please review the form.");
-  if (error?.code === "42501") throw new Error("This action is not allowed.");
+  if (error?.code === "42501") throw new Error("Job posting is temporarily blocked by database permissions. Please try again shortly.");
+  if (error?.code === "PGRST301" || error?.code === "PGRST302") throw new Error("Your connection to job posting expired. Please refresh and try again.");
+  if (error?.code === "23502") throw new Error("A required field is missing. Check all job details and try again.");
   if (error?.message && /abort/i.test(error.message)) throw new Error("The server took too long to respond. Please try again.");
   if (error?.message && /fetch|network/i.test(error.message)) throw new Error("Could not reach the service. Check your connection and try again.");
   throw new Error("Something went wrong. Please try again.");
@@ -158,14 +160,20 @@ export const jobsApi = {
     if (error) fail(error);
   },
 
-  // No .select() on purpose: the database sets status, verification and expiry server-side.
-  async create(job: NewJob): Promise<void> {
+  // A successful HTTP response is not enough to claim a listing went live.
+  // Read back only its ID and server-controlled status, not contact details or
+  // privileged fields. RLS permits reading published jobs, never draft jobs.
+  async create(job: NewJob): Promise<{ id: string; status: string }> {
     guard();
-    const { error } = await withTimeout(supabase.from("jobs").insert({
+    const { data, error } = await withTimeout(supabase.from("jobs").insert({
       title: job.title, employer_name: job.employerName, location: job.location, category: job.category,
       mode: job.mode, pay: job.pay, description: job.description, requirements: job.requirements,
       phone: job.phone, whatsapp: job.whatsApp, email: job.email,
-    }));
+    }).select("id,status").single());
     if (error) fail(error);
+    if (!data?.id || data.status !== "published") {
+      throw new Error("Your job was received, but publication could not be confirmed. Please check the jobs feed before resubmitting.");
+    }
+    return { id: data.id, status: data.status };
   },
 };
