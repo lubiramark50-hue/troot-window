@@ -1,0 +1,38 @@
+name: Job detail and posting regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/job-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/job-regression.yml'
+permissions:
+  contents: read
+jobs:
+  job-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install frontend and browser test dependencies
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save playwright --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Build isolated test site
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://fake.supabase.test
+          VITE_SUPABASE_ANON_KEY: fake-public-test-key
+      - name: Test job details and successful/failed submissions in Chromium
+        run: node scripts/e2e-job-regression.mjs

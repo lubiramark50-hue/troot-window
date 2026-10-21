@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { BadgeCheck, Bookmark, CheckCircle2, ExternalLink, Flag, Mail, MapPin, MessageCircle, Phone, Share2, ShieldAlert, Wallet, Briefcase, Laptop } from "lucide-react";
 import { jobsApi, modeLabel, sourceLabel, type Job } from "../api";
+import { JobContent, isFormattedJobText } from "../JobContent";
 import { Avatar, splitReq, timeAgo, TopBar, useSaved, useToast } from "../ui";
 
 export default function Detail() {
@@ -67,8 +68,8 @@ export default function Detail() {
           <div><Briefcase size={18} /><span>Category</span><b>{job.category}</b></div>
         </div>
 
-        <section><h3>About the job</h3><p className="prose">{job.description}</p></section>
-        <section><h3>Requirements</h3><ul className="req">{splitReq(job.requirements).map((r) => <li key={r}><CheckCircle2 size={17} />{r}</li>)}</ul></section>
+        <section><h3>About the job</h3><JobContent text={job.description} /></section>
+        <section><h3>Requirements</h3>{isFormattedJobText(job.requirements) ? <JobContent text={job.requirements} /> : <ul className="req">{splitReq(job.requirements).map((r) => <li key={r}><CheckCircle2 size={17} />{r}</li>)}</ul>}</section>
 
         {job.sourceUrl && (
           <p className="source-note">
