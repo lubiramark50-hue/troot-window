@@ -6,21 +6,15 @@ import type { Job } from "./api";
 /* ---------- Brand ---------- */
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 80 80" aria-hidden="true" className="logo-mark">
-      <defs>
-        <linearGradient id="tw-logo-blue" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#02C8F6" /><stop offset=".54" stopColor="#107BEB" /><stop offset="1" stopColor="#063F97" />
-        </linearGradient>
-        <linearGradient id="tw-logo-green" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#058B60" /><stop offset="1" stopColor="#5CE291" />
-        </linearGradient>
-      </defs>
-      <rect width="80" height="80" rx="17" fill="#0759B7" />
-      <path d="M0 0h80v80H0z" fill="url(#tw-logo-blue)" />
-      <path d="M43 0h37v80H43l-18-19 18-18z" fill="url(#tw-logo-green)" opacity=".9" />
-      <path d="M0 0h42l29 28H0z" fill="#00BDE9" opacity=".35" />
-      <path d="M12 18h57a6 6 0 010 12H47v34a7 7 0 01-14 0V30H12a6 6 0 010-12z" fill="white" />
-    </svg>
+    <img
+      src="/troot-window-logo.webp"
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+      className="logo-mark"
+      style={{ objectFit: "contain", boxShadow: "none", borderRadius: 0 }}
+    />
   );
 }
 
