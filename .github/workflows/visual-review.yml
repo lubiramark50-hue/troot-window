@@ -1,0 +1,52 @@
+name: Troot Window Visual Review
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/visual-review.yml'
+permissions:
+  contents: write
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install frontend
+        run: npm install --no-audit --no-fund
+      - name: Build isolated visual-test frontend
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: ui-review-example-anon-key
+      - name: Install browser
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Capture desktop and phone and assert layouts
+        run: node scripts/capture-design.mjs
+      - name: Store versioned design screenshots on review branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          cd ..
+          mkdir -p docs/visual-review
+          cp frontend/test-results/*.png docs/visual-review/
+          cp frontend/test-results/report.json docs/visual-review/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/visual-review
+          if ! git diff --cached --quiet; then
+            git commit -m 'test(ui): add desktop and phone screenshot evidence'
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+          echo 'Screenshots: docs/visual-review/ on the review branch' >> "$GITHUB_STEP_SUMMARY"

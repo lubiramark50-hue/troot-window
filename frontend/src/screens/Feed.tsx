@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowRight, ArrowUpRight, BadgeCheck, Bookmark, BriefcaseBusiness, CheckCircle2, ChevronRight, Clock3, MapPin, Search, SearchX, ShieldCheck, SlidersHorizontal, Sparkles, WifiOff, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BadgeCheck, Bookmark, BriefcaseBusiness, CheckCircle2, ChevronRight, Clock3, Coffee, HardHat, Laptop2, MapPin, Search, SearchX, ShieldCheck, SlidersHorizontal, Sparkles, Truck, WifiOff, Wrench, X, type LucideIcon } from "lucide-react";
 import { CATEGORIES, MODES, jobsApi, modeLabel, sourceLabel, type Job } from "../api";
 import { Avatar, LogoMark, splitReq, timeAgo, useSaved } from "../ui";
 
@@ -35,8 +35,9 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
   return <div className="state"><WifiOff size={34} /><h3>Couldn't load jobs</h3><p>{message}</p><button className="btn btn-primary" onClick={onRetry}>Try again</button></div>;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Construction: "🏗️", Technology: "💻", Trades: "🛠️", Hospitality: "🏨", Transport: "🚚", Other: "✨",
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  Construction: HardHat, Technology: Laptop2, Trades: Wrench,
+  Hospitality: Coffee, Transport: Truck, Other: Sparkles,
 };
 
 export default function Feed() {
@@ -54,7 +55,7 @@ export default function Feed() {
   const [more, setMore] = useState(false);
   const [error, setError] = useState("");
   const [nonce, setNonce] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const sentinel = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -100,6 +101,11 @@ export default function Feed() {
   };
   const goToJobs = () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const activeFilters = (category !== "All" ? 1 : 0) + (mode !== "All" ? 1 : 0) + (verified ? 1 : 0);
+  // Only show genuinely verified employers returned by the database.
+  const verifiedEmployers = Array.from(
+    new Map(items.filter(job => job.employerVerified).map(job => [job.employerName.toLowerCase(), job.employerName])).values()
+  ).slice(0, 6);
+
 
   return <div className="screen tw-home">
     <div className="tw-mobile-brand"><div className="tw-mobile-brandline"><LogoMark size={34} /><span className="tw-wordmark">Troot <b>Window</b></span></div><Link to="/safety" className="tw-mobile-safe" aria-label="Safety tips"><ShieldCheck size={20} /></Link></div>
@@ -107,7 +113,7 @@ export default function Feed() {
 
     <section className="tw-hero" aria-labelledby="tw-hero-title">
       <div className="tw-hero-copy">
-        <div className="tw-eyebrow"><Sparkles size={14}/> THE FUTURE LOOKS BRIGHT</div>
+        <div className="tw-eyebrow"><Sparkles size={14}/> REAL OPPORTUNITIES. BRIGHTER FUTURES.</div><span className="tw-mobile-greeting">Hi there! 👋</span>
         <h1 id="tw-hero-title">Find a job that <span>moves your life forward.</span></h1>
         <p>Real opportunities, genuine connections. Discover your next big step with Troot Window.</p>
         <button type="button" className="tw-hero-cta" onClick={goToJobs}>Explore opportunities <ArrowRight size={18}/></button>
@@ -137,14 +143,31 @@ export default function Feed() {
 
     <section className="tw-categories" aria-labelledby="category-heading">
       <div className="tw-section-heading"><div><span className="tw-kicker">BROWSE YOUR WAY</span><h2 id="category-heading">Popular categories</h2></div><button onClick={() => setFilter("c", "All")} className="tw-text-button">View all <ArrowRight size={15}/></button></div>
-      <div className="tw-category-grid">{CATEGORIES.map(c => <button type="button" key={c} className={`tw-category-card${category === c ? " on" : ""}`} aria-pressed={category === c} onClick={() => setFilter("c", category === c ? "All" : c)}>
-        <span className="tw-category-emoji" aria-hidden="true">{CATEGORY_ICONS[c]}</span><strong>{c}</strong><span>Explore jobs <ArrowRight size={12}/></span>
-      </button>)}</div>
+      <div className="tw-category-grid">{CATEGORIES.map(c => {
+        const Icon = CATEGORY_ICONS[c];
+        return <button type="button" key={c} className={["tw-category-card",category === c ? "on" : ""].filter(Boolean).join(" ")} aria-pressed={category === c} onClick={() => setFilter("c", category === c ? "All" : c)}>
+          <span className="tw-category-emoji" aria-hidden="true"><Icon size={21} strokeWidth={2.2}/></span>
+          <strong>{c}</strong><span>Find opportunities <ArrowRight size={12}/></span>
+        </button>;
+      })}</div>
     </section>
+
+    {verifiedEmployers.length > 0 && !verified && !term && <section className="tw-verified-employers" aria-labelledby="verified-employers-heading">
+      <div className="tw-section-heading">
+        <div><span className="tw-kicker">TRUSTED OPPORTUNITIES</span><h2 id="verified-employers-heading">Employers with verified listings</h2></div>
+        <button className="tw-text-button" onClick={toggleVerified}>See verified jobs <ArrowRight size={15}/></button>
+      </div>
+      <div className="tw-verified-grid">{verifiedEmployers.map(employer =>
+        <div className="tw-verified-company" key={employer}>
+          <span className="tw-company-letter" aria-hidden="true">{employer.trim().slice(0, 1).toUpperCase()}</span>
+          <span className="tw-company-name"><strong>{employer}</strong><small><BadgeCheck size={13}/> Verified source</small></span>
+        </div>
+      )}</div>
+    </section>}
 
     <div className="tw-content-grid" ref={resultsRef}>
       <section className="tw-results" aria-labelledby="results-heading">
-        <div className="tw-section-heading tw-results-heading"><div><span className="tw-kicker">OPPORTUNITIES FOR YOU</span><h2 id="results-heading">{category === "All" ? "Latest job opportunities" : `${category} jobs`}</h2></div>
+        <div className="tw-section-heading tw-results-heading"><div><span className="tw-kicker">EXPLORE WHAT IS NEXT</span><h2 id="results-heading">{category === "All" ? "Featured for you" : `${category} jobs`}</h2></div>
           {!busy && !error && <span className="tw-result-count">{total.toLocaleString()} {total === 1 ? "job" : "jobs"}</span>}
         </div>
         {busy ? <Skeletons/> : error && items.length === 0 ? <ErrorState message={error} onRetry={() => setNonce(n => n+1)}/> : items.length === 0 ? <div className="state tw-empty"><SearchX size={38}/><h3>No matching opportunities yet</h3><p>Try another category, search term, or work type.</p><button className="btn btn-primary" onClick={() => { setQ(""); setParams(new URLSearchParams()); }}>Clear filters</button></div> : <>

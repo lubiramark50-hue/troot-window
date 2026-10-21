@@ -5,6 +5,7 @@ import App from "./App";
 import "./styles.css";
 import "./mobile-polish.css";
 import "./desktop-polish.css";
+import "./visual-system.css";
 import { startAutomaticUpdates } from "./update-manager";
 
 startAutomaticUpdates();
