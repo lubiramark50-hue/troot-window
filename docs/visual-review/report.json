@@ -1,0 +1,44 @@
+{
+  "type": "synthetic-visual-test-only",
+  "results": [
+    {
+      "name": "troot-desktop-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "jobCards": 8,
+      "verifiedEmployers": 3,
+      "sidebarVisible": true,
+      "tabsVisible": false,
+      "horizontalOverflow": false,
+      "exceptions": []
+    },
+    {
+      "name": "troot-phone-390",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "jobCards": 8,
+      "verifiedEmployers": 3,
+      "sidebarVisible": false,
+      "tabsVisible": true,
+      "horizontalOverflow": false,
+      "exceptions": []
+    },
+    {
+      "name": "troot-tablet-768",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "jobCards": 8,
+      "verifiedEmployers": 3,
+      "sidebarVisible": false,
+      "tabsVisible": true,
+      "horizontalOverflow": false,
+      "exceptions": []
+    }
+  ]
+}
