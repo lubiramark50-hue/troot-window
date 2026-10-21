@@ -9,14 +9,14 @@ const host = 'http://127.0.0.1:4173';
 const site = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], { stdio: 'pipe' });
 const results = [];
 const jobs = [
-  ['Senior Frontend Developer','Nile Digital','Kampala, Uganda','Technology','Hybrid','UGX 5M–8M/month',true],
-  ['Creative Graphic Designer','Lakeview Studio','Entebbe, Uganda','Technology','Remote','UGX 2M–4M/month',true],
-  ['Site Project Manager','Kampala Build Co.','Kampala, Uganda','Construction','OnSite','UGX 3M–5M/month',true],
-  ['Hotel Guest Experience Lead','Pearl Hospitality','Jinja, Uganda','Hospitality','OnSite','UGX 1.5M–2.5M/month',false],
-  ['Fleet Operations Officer','Transit Works','Mbarara, Uganda','Transport','OnSite','UGX 2M–3M/month',false],
+  ['Senior Frontend Developer','Nile Digital','Kampala, Uganda','Technology','Hybrid','UGX 5Mâ8M/month',true],
+  ['Creative Graphic Designer','Lakeview Studio','Entebbe, Uganda','Technology','Remote','UGX 2Mâ4M/month',true],
+  ['Site Project Manager','Kampala Build Co.','Kampala, Uganda','Construction','OnSite','UGX 3Mâ5M/month',true],
+  ['Hotel Guest Experience Lead','Pearl Hospitality','Jinja, Uganda','Hospitality','OnSite','UGX 1.5Mâ2.5M/month',false],
+  ['Fleet Operations Officer','Transit Works','Mbarara, Uganda','Transport','OnSite','UGX 2Mâ3M/month',false],
   ['Senior Electrician','Greenline Services','Gulu, Uganda','Trades','OnSite','UGX 120K/day',false],
   ['Remote Customer Specialist','Apex Connect','Remote','Other','Remote','UGX 2M/month',false],
-  ['Software Engineer','Bright Futures Lab','Kampala, Uganda','Technology','Hybrid','UGX 4M–6M/month',false],
+  ['Software Engineer','Bright Futures Lab','Kampala, Uganda','Technology','Hybrid','UGX 4Mâ6M/month',false],
 ].map((p,i) => ({
   id: '00000000-0000-4000-8000-' + String(i+1).padStart(12,'0'),
   title:p[0],employer_name:p[1],location:p[2],category:p[3],mode:p[4],pay:p[5],
@@ -54,7 +54,7 @@ async function render(browser, name, viewport, mobile) {
   assert.equal(tabsVisible,viewport.width<900,'Mobile navigation visibility at '+name);
   assert.equal(horizontalOverflow,false,'Unexpected horizontal overflow at '+name);
   assert.equal(exceptions.length,0,'Unexpected browser exceptions at '+name+': '+exceptions.join('; '));
-  await page.screenshot({path:'test-results/'+name+'.png',fullPage:true,animations:'disabled'});
+  await page.screenshot({path:'test-results/'+name+'.png',fullPage:viewport.width>=900,animations:'disabled'});
   results.push({name,viewport,jobCards:count,verifiedEmployers:verified,sidebarVisible,tabsVisible,horizontalOverflow,exceptions});
   await page.close();
 }
