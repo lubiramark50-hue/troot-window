@@ -1,0 +1,30 @@
+/* Desktop screenshot regression fix: remove the inherited centered mobile-width frame. */
+@media (min-width:900px) {
+  html, body, #root {
+    display:block;
+    width:100%;
+    min-width:0;
+    max-width:none !important;
+    margin:0 !important;
+    padding:0;
+  }
+  .tw-app-shell {
+    display:flex;
+    box-sizing:border-box;
+    width:100%;
+    min-width:0;
+    max-width:none;
+    height:100dvh;
+    margin:0;
+  }
+  .tw-app-main {
+    display:block;
+    flex:1 1 0%;
+    width:auto;
+    max-width:none;
+    min-width:0;
+    overflow:hidden;
+  }
+  .tw-app-main>.viewport { width:100%;max-width:none; }
+  .tw-home { width:100%; max-width:1500px; }
+}
