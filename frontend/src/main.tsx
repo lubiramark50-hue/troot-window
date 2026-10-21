@@ -13,5 +13,6 @@ createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />
-    </React.StrictMode>,
+    </BrowserRouter>
+  </React.StrictMode>,
 );
