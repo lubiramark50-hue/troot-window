@@ -15,3 +15,14 @@
   .tw-result-count { font-size:10px; }
   .tw-results-heading h2 { font-size:19px; }
 }
+
+/* Use natural document scrolling on phone and tablet layouts.
+   The legacy 720px+ #root frame hid overflow while its child grew taller
+   than the viewport, clipping the Jobs and Post pages on narrow tablets.
+   The desktop layout (900px+) keeps its dedicated .viewport scroller. */
+@media (max-width: 899px) {
+  html, body { height: auto; min-height: 100%; }
+  #root { height: auto; min-height: 100dvh; overflow: visible; }
+  .tw-app-shell, .tw-app-main { height: auto; min-height: 100dvh; }
+  .viewport { height: auto; min-height: 100dvh; overflow-y: visible; }
+}
