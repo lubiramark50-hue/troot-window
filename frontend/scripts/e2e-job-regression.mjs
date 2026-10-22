@@ -33,7 +33,14 @@ try {
     const errors = [];
     let shouldReject = false;
     let inserted = null;
+    let activeJob = job;
     page.on("pageerror", e => errors.push(e.message));
+    // Avoid third-party requests during isolated UI tests; the SVG simulates
+    // an available company favicon, including while offline.
+    await page.route("https://www.google.com/s2/favicons?**", async route => {
+      if (route.request().url().includes("broken-logo.example")) return route.abort("failed");
+      await route.fulfill({ status: 200, contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="#096ee9"/></svg>' });
+    });
     await page.route("https://fake.supabase.test/**", async route => {
       const req = route.request();
       const url = new URL(req.url());
@@ -45,13 +52,39 @@ try {
         return route.fulfill({ status: shouldReject ? 403 : 201, contentType: "application/json", body: JSON.stringify(shouldReject ? { code: "42501", message: "permission denied" } : { id, status: "published" }) });
       }
       if (req.method() === "GET") {
-        return route.fulfill({ status: 200, contentType: "application/json", body: req.headers().accept?.includes("application/vnd.pgrst.object") ? JSON.stringify(job) : JSON.stringify([job]) });
+        return route.fulfill({ status: 200, contentType: "application/json", body: req.headers().accept?.includes("application/vnd.pgrst.object") ? JSON.stringify(activeJob) : JSON.stringify([activeJob]) });
       }
       return route.fulfill({ status: 405, body: "{}" });
     });
     try {
+      // Company logo is shared by feed cards and detail pages.
+      await page.goto(origin);
+      const cardLogo = page.locator(".job-row .company-avatar-img").first();
+      await cardLogo.waitFor({ timeout: 20000 });
+      assert.equal(new URL(await cardLogo.getAttribute("src")).searchParams.get("domain"), "example.org");
       await page.goto(`${origin}/jobs/${id}`);
       await page.getByRole("heading", { name: "Community technology assistant" }).waitFor();
+      const detailLogo = page.locator(".detail-head .company-avatar-img");
+      await detailLogo.waitFor();
+      assert.equal(new URL(await detailLogo.getAttribute("src")).searchParams.get("domain"), "example.org");
+      // A listing syndicated by a third-party board must NOT show the board's
+      // logo as if that board employed the candidate.
+      activeJob = { ...job, employer_name: "RemotePeople", source: "himalayas", company_domain: "himalayas.app" };
+      await page.reload();
+      const curatedLogo = page.locator(".detail-head .company-avatar-img");
+      await curatedLogo.waitFor();
+      assert.equal(new URL(await curatedLogo.getAttribute("src")).searchParams.get("domain"), "remotepeople.com");
+      activeJob = { ...job, employer_name: "Unknown Employer", source: "jobicy", company_domain: "jobicy.com" };
+      await page.reload();
+      await page.locator(".detail-head .company-avatar-placeholder").waitFor();
+      assert.equal(await page.locator(".detail-head .company-avatar-img").count(), 0, "Never show a third-party job board as the employer");
+      assert.equal(await page.locator(".detail-head .company-avatar").innerText(), "", "Fallback icon must replace initials");
+      activeJob = { ...job, employer_name: "Broken Logo Co", source: "greenhouse", company_domain: "broken-logo.example" };
+      await page.reload();
+      await page.locator(".detail-head .company-avatar-placeholder").waitFor();
+      assert.equal(await page.locator(".detail-head .company-avatar-img").count(), 0,
+        "A failed favicon request must degrade gracefully instead of showing a broken image");
+      activeJob = job;
       await page.getByRole("heading", { name: "About the role" }).waitFor();
       const body = await page.locator(".job-rich-content").innerText();
       assert(body.includes("Help our team with real work"));
@@ -82,7 +115,7 @@ try {
       const href = await page.getByRole("button", { name: "View your job" }).getAttribute("type");
       assert(href === null || href === "button");
       assert.deepEqual(errors, [], `Browser errors in ${name}`);
-      console.log(`PASS ${name}: rich text safe, invalid URLs stripped, script not executed, rejected posts show errors, and verified posts show success`);
+      console.log(`PASS ${name}: employer logos on feed/detail, aggregator-safe fallback, rich text safety, rejected/confirmed job posts`);
     } catch (e) {
       failures++;
       console.error(`FAIL ${name}`, e);

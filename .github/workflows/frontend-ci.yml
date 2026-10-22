@@ -25,3 +25,5 @@ jobs:
         run: npm run build
       - name: Frontend API contract smoke test
         run: npm run test:contract
+      - name: Verify employer logos and block misleading aggregator logos
+        run: npm run test:logos

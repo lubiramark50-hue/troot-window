@@ -14,7 +14,8 @@
     "verify:sources": "node scripts/verify-sources.mjs",
     "sync:jobs": "node scripts/ingest-jobs.mjs",
     "sync:jobs:dry": "node scripts/ingest-jobs.mjs --dry-run",
-    "icons": "node scripts/build-icons.mjs && npx capacitor-assets generate --android"
+    "icons": "node scripts/build-icons.mjs && npx capacitor-assets generate --android",
+    "test:logos": "node scripts/verify-company-logos.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
