@@ -33,6 +33,8 @@ const KNOWN_EMPLOYER_DOMAINS: Record<string, string> = {
   "lastpass": "lastpass.com",
   "lemonio": "lemon.io",
   "medtronic": "medtronic.com",
+  "nebius": "nebius.com",
+  "natuvion gmbh": "natuvion.com",
   "microsourcing": "microsourcing.com",
   "remotepeople": "remotepeople.com",
   "revenuecat": "revenuecat.com",
@@ -76,7 +78,41 @@ export function employerLogoDomain(job: LogoJob): string | null {
   return null;
 }
 
-export function employerLogoUrl(job: LogoJob): string | null {
+/** Locally hosted, readable employer wordmarks sourced from the companies'
+ * own sites or attributed public assets. This is preferable to favicon services
+ * that often return a single letter rather than the company's full logo. */
+const OFFICIAL_WORDMARKS: Record<string, string> = {
+  "moniepoint.com": "moniepoint",
+  "oneacrefund.org": "one-acre-fund",
+  "m-kopa.com": "m-kopa",
+  "givedirectly.org": "givedirectly",
+  "jumia.com": "jumia",
+  "andela.com": "andela",
+  "ozow.com": "ozow",
+  "kuda.com": "kuda",
+  "experienceeducate.org": "educate",
+  "luno.com": "luno",
+  "carry1st.com": "carry1st",
+  "remotepeople.com": "remotepeople",
+  "scale-jet.com": "scalejet",
+  "nebius.com": "nebius",
+  "natuvion.com": "natuvion",
+  "rillet.com": "rillet",
+};
+
+/** Returns an identifiable, larger company logo served by Troot Window. */
+export function employerWordmarkUrl(job: LogoJob): string | null {
+  const domain = employerLogoDomain(job);
+  const file = domain && OFFICIAL_WORDMARKS[domain];
+  return file ? `/employer-logos/${file}.png` : null;
+}
+
+/** Browser fallback for companies without a curated official wordmark. */
+export function employerFaviconUrl(job: LogoJob): string | null {
   const domain = employerLogoDomain(job);
   return domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128` : null;
+}
+
+export function employerLogoUrl(job: LogoJob): string | null {
+  return employerWordmarkUrl(job) || employerFaviconUrl(job);
 }

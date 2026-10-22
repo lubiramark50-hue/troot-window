@@ -1,6 +1,6 @@
 /** Logic regression tests: logos must represent employers, not aggregator sites. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { Script, createContext } from "node:vm";
 import ts from "typescript";
 
@@ -13,7 +13,7 @@ const compiled = ts.transpileModule(source, { compilerOptions: {
 }});
 const sandbox = { exports: {} };
 new Script(compiled.outputText, { filename: "company-logos.js" }).runInContext(createContext(sandbox));
-const { employerLogoDomain, employerLogoUrl } = sandbox.exports;
+const { employerLogoDomain, employerLogoUrl, employerWordmarkUrl, employerFaviconUrl } = sandbox.exports;
 const job = (source, companyDomain, employerName = "Example Employer") => ({ source, companyDomain, employerName });
 
 assert.equal(employerLogoDomain(job("greenhouse", "moniepoint.com", "Moniepoint")), "moniepoint.com");
@@ -30,6 +30,22 @@ assert.equal(employerLogoDomain(job("unexpected", "moniepoint.com", "Moniepoint"
 assert.equal(employerLogoDomain(job("greenhouse", "himalayas.app", "Unknown startup")), null);
 for (const value of ["example.org/path", "x.example.com?bad=1", "javascript:evil.org", "https://foo.com", "localhost", "x..com"])
   assert.equal(employerLogoDomain(job("greenhouse", value)), null, `Rejected unsafe domain: ${value}`);
-assert.equal(employerLogoUrl(job("greenhouse", "moniepoint.com")),
+assert.equal(employerLogoUrl(job("greenhouse", "moniepoint.com")), "/employer-logos/moniepoint.png");
+assert.equal(employerLogoUrl(job("ashby", "m-kopa.com", "M-KOPA")), "/employer-logos/m-kopa.png");
+assert.equal(employerLogoUrl(job("himalayas", "himalayas.app", "RemotePeople")), "/employer-logos/remotepeople.png");
+assert.equal(employerLogoUrl(job("jobicy", "jobicy.com", "Nebius")), "/employer-logos/nebius.png");
+assert.equal(employerLogoUrl(job("arbeitnow", "arbeitnow.com", "Natuvion GmbH")), "/employer-logos/natuvion.png");
+assert.equal(employerLogoUrl(job("jobicy", "jobicy.com", "Spotify")),
+  "https://www.google.com/s2/favicons?domain=spotify.com&sz=128");
+assert.equal(employerWordmarkUrl(job(null, "moniepoint.com", "Moniepoint")), null,
+  "Anonymous employer job posts cannot assume identity of a famous employer");
+assert.equal(employerFaviconUrl(job("greenhouse", "moniepoint.com")),
   "https://www.google.com/s2/favicons?domain=moniepoint.com&sz=128");
-console.log("PASS: employer logo domains, curated company matches, aggregator filtering, spoofing prevention and URL validation.");
+const curated = JSON.parse(readFileSync(new URL("../public/employer-logos/SOURCES.json", import.meta.url), "utf8"));
+for (const [filename, source] of Object.entries(curated)) {
+  assert(source.url.startsWith("https://"), `Official source required: ${filename}`);
+  assert(existsSync(new URL(`../public/employer-logos/${filename}.png`, import.meta.url)),
+    `Missing wordmark: ${filename}`);
+}
+assert(Object.keys(curated).length >= 16, "Expected high-coverage approved employer wordmarks");
+console.log("PASS: authentic local employer wordmarks, assets verified, aggregator filtering, domain spoofing prevention and favicon fallback.");
