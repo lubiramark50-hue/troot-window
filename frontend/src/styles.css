@@ -476,3 +476,25 @@ body {background:var(--bg);font-family:Inter,"SF Pro Display",system-ui,-apple-s
 .job-rich-content a{color:var(--blue-600);text-decoration:underline;text-underline-offset:3px;word-break:break-word}
 .job-rich-content blockquote{border-left:3px solid var(--blue-600);padding:9px 13px;background:var(--surface);border-radius:6px}
 .job-rich-content > div{display:grid;gap:9px}
+
+/* Authentic employer favicons on cards and job details. Unknown brands have a
+   neutral business icon instead of initials or a misleading job-board logo. */
+.avatar.company-avatar {
+  background: #fff;
+  color: #4979b2;
+  border: 1px solid #e3eaf3;
+  box-shadow: 0 3px 10px rgb(25 65 116 / 6%);
+  overflow: hidden;
+  isolation: isolate;
+}
+.company-avatar-img {
+  display: block;
+  width: 74%;
+  height: 74%;
+  object-fit: contain;
+  flex: none;
+}
+.company-avatar-placeholder { color: #7192b6; }
+@media (prefers-color-scheme: dark) {
+  .avatar.company-avatar { background: #fff; border-color: #334358; }
+}

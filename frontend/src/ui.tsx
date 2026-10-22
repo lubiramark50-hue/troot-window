@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { Building2, ChevronLeft } from "lucide-react";
 import type { Job } from "./api";
+import { employerLogoUrl } from "./company-logos";
 
 /* ---------- Brand ---------- */
 export function LogoMark({ size = 32 }: { size?: number }) {
@@ -89,6 +90,17 @@ export const timeAgo = (iso?: string) => {
   if (d < 604800) return `${Math.floor(d / 86400)}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
-export const Avatar = ({ job, size = 46 }: { job: Pick<Job, "employerName">; size?: number }) => (
-  <span className={`avatar t${tone(job.employerName)}`} style={{ width: size, height: size, fontSize: size * 0.36 }}>{initials(job.employerName)}</span>
-);
+/** A recognizable company mark where a verified employer domain is known.
+ * For employers without a trustworthy logo, show a neutral company icon rather
+ * than initials or, worse, an unrelated job board's branding. */
+export function Avatar({ job, size = 46 }: { job: Pick<Job, "employerName" | "companyDomain" | "source">; size?: number }) {
+  const url = employerLogoUrl(job);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const useLogo = !!url && failedUrl !== url;
+  return <span className="avatar company-avatar" style={{ width: size, height: size }}>
+    {useLogo
+      ? <img className="company-avatar-img" src={url} alt="" loading={size >= 58 ? "eager" : "lazy"}
+          decoding="async" referrerPolicy="no-referrer" onError={() => setFailedUrl(url)} />
+      : <Building2 className="company-avatar-placeholder" size={Math.round(size * 0.46)} strokeWidth={1.8} aria-hidden="true" />}
+  </span>;
+}
