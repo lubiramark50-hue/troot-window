@@ -498,3 +498,22 @@ body {background:var(--bg);font-family:Inter,"SF Pro Display",system-ui,-apple-s
 @media (prefers-color-scheme: dark) {
   .avatar.company-avatar { background: #fff; border-color: #334358; }
 }
+
+/* Full company wordmarks are shown at their natural aspect ratio. The wider
+   logo tile is deliberate: 34px favicons reduced most employers to letters. */
+.company-avatar--wordmark {
+  border: 1px solid #d9e6f2;
+  border-radius: 14px;
+  background: #fff;
+  padding: 4px;
+}
+.company-avatar--wordmark .company-avatar-img {
+  width: 100%; height: 100%; object-fit: contain; border-radius: 6px;
+}
+.company-avatar--icon .company-avatar-img { width: 68%; height: 68%; object-fit: contain; }
+.job-row .company-avatar--wordmark { flex-shrink: 0; }
+.detail-head .company-avatar--wordmark { flex-shrink: 0; }
+@media (max-width: 430px) {
+  .job-row .company-avatar--wordmark { width: 87px !important; height: 53px !important; }
+  .detail-head .company-avatar--wordmark { width: 108px !important; height: 60px !important; }
+}

@@ -151,7 +151,7 @@ export default function Feed() {
           <div className="list">{items.map(j => <JobRow key={j.id} job={j}/>)}</div>
           <div ref={sentinel} className="sentinel">{more && <Skeletons n={2}/ >}{error && <button className="btn btn-ghost" onClick={loadMore}>Retry loading more</button>}</div>
         </>}
-        <p className="source-note tw-source-note">Listings may come directly from employers or attributed public job feeds. Always check the original posting and never pay to apply.</p>
+        <p className="source-note tw-source-note">Listings may come directly from employers or attributed public job feeds. Always check the original posting and never pay to apply. Company logos identify employers and do not imply endorsement. <a href="/employer-logos/CREDITS.html" target="_blank" rel="noopener noreferrer">Logo credits</a>.</p>
       </section>
       <aside className="tw-discover-aside">
         <div className="tw-trust-card"><div className="tw-trust-icon"><ShieldCheck size={28}/></div><span className="tw-kicker">YOUR SAFETY MATTERS</span><h3>Find work with more confidence.</h3><p>Know where listings come from, recognize verified employers, and report anything suspicious.</p>

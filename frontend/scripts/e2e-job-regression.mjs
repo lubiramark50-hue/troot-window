@@ -73,7 +73,28 @@ try {
       await page.reload();
       const curatedLogo = page.locator(".detail-head .company-avatar-img");
       await curatedLogo.waitFor();
-      assert.equal(new URL(await curatedLogo.getAttribute("src")).searchParams.get("domain"), "remotepeople.com");
+      assert.equal(await curatedLogo.getAttribute("src"), "/employer-logos/remotepeople.png");
+      await page.waitForFunction(() => {
+        const img = document.querySelector(".detail-head .company-avatar-img");
+        return img && img.complete && img.naturalWidth > 0;
+      });
+      // The largest employer on the production board must show a legible full
+      // company wordmark both on job cards and on the details page.
+      activeJob = { ...job, employer_name: "Moniepoint", source: "greenhouse", company_domain: "moniepoint.com" };
+      await page.goto(origin);
+      const wordmark = page.locator(".job-row .company-avatar-img").first();
+      await wordmark.waitFor();
+      assert.equal(await wordmark.getAttribute("src"), "/employer-logos/moniepoint.png");
+      await page.waitForFunction(() => {
+        const img = document.querySelector(".job-row .company-avatar-img");
+        return img && img.complete && img.naturalWidth > 0;
+      });
+      const logoWidth = await page.locator(".job-row .company-avatar").evaluate(el => el.getBoundingClientRect().width);
+      assert(logoWidth >= 85, `Company wordmark is too small to read: ${logoWidth}px`);
+      await page.goto(`${origin}/jobs/${id}`);
+      const detailWordmark = page.locator(".detail-head .company-avatar-img");
+      await detailWordmark.waitFor();
+      assert.equal(await detailWordmark.getAttribute("src"), "/employer-logos/moniepoint.png");
       activeJob = { ...job, employer_name: "Unknown Employer", source: "jobicy", company_domain: "jobicy.com" };
       await page.reload();
       await page.locator(".detail-head .company-avatar-placeholder").waitFor();
@@ -115,7 +136,7 @@ try {
       const href = await page.getByRole("button", { name: "View your job" }).getAttribute("type");
       assert(href === null || href === "button");
       assert.deepEqual(errors, [], `Browser errors in ${name}`);
-      console.log(`PASS ${name}: employer logos on feed/detail, aggregator-safe fallback, rich text safety, rejected/confirmed job posts`);
+      console.log(`PASS ${name}: full employer wordmarks load on feed/detail; verified aggregator-safe fallback, job detail safety and job posting`);
     } catch (e) {
       failures++;
       console.error(`FAIL ${name}`, e);

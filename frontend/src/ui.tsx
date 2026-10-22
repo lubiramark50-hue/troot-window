@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useRef, useState, useSyncExtern
 import { useNavigate } from "react-router-dom";
 import { Building2, ChevronLeft } from "lucide-react";
 import type { Job } from "./api";
-import { employerLogoUrl } from "./company-logos";
+import { employerFaviconUrl, employerLogoUrl, employerWordmarkUrl } from "./company-logos";
 
 /* ---------- Brand ---------- */
 export function LogoMark({ size = 32 }: { size?: number }) {
@@ -90,17 +90,25 @@ export const timeAgo = (iso?: string) => {
   if (d < 604800) return `${Math.floor(d / 86400)}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
-/** A recognizable company mark where a verified employer domain is known.
- * For employers without a trustworthy logo, show a neutral company icon rather
- * than initials or, worse, an unrelated job board's branding. */
+/** Company logo from the employer's official brand where available, rendered in
+ * a wider tile so a real wordmark stays legible instead of reducing to letters.
+ * A failed local asset falls back to an authentic favicon, then to the neutral
+ * company icon; users never see a broken image. */
 export function Avatar({ job, size = 46 }: { job: Pick<Job, "employerName" | "companyDomain" | "source">; size?: number }) {
-  const url = employerLogoUrl(job);
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const useLogo = !!url && failedUrl !== url;
-  return <span className="avatar company-avatar" style={{ width: size, height: size }}>
-    {useLogo
-      ? <img className="company-avatar-img" src={url} alt="" loading={size >= 58 ? "eager" : "lazy"}
-          decoding="async" referrerPolicy="no-referrer" onError={() => setFailedUrl(url)} />
+  const primary = employerLogoUrl(job);
+  const fallback = employerFaviconUrl(job);
+  const [failedUrls, setFailedUrls] = useState<string[]>([]);
+  const candidate = primary && !failedUrls.includes(primary) ? primary
+    : fallback && fallback !== primary && !failedUrls.includes(fallback) ? fallback : null;
+  const isWordmark = candidate !== null && candidate === employerWordmarkUrl(job);
+  const isDetail = size >= 58;
+  return <span
+    className={`avatar company-avatar ${isWordmark ? "company-avatar--wordmark" : "company-avatar--icon"}${isDetail ? " company-avatar--detail" : ""}`}
+    style={{ width: isWordmark ? (isDetail ? 126 : 104) : (isDetail ? 65 : 55), height: isDetail ? 65 : 56 }}>
+    {candidate
+      ? <img className="company-avatar-img" src={candidate} alt="" loading={isDetail ? "eager" : "lazy"}
+          decoding="async" referrerPolicy="no-referrer"
+          onError={() => setFailedUrls(prev => prev.includes(candidate) ? prev : [...prev, candidate])} />
       : <Building2 className="company-avatar-placeholder" size={Math.round(size * 0.46)} strokeWidth={1.8} aria-hidden="true" />}
   </span>;
 }
