@@ -127,7 +127,7 @@ export default function Feed() {
       <div className="tw-search-row">
         <label className="search tw-search"><Search size={20}/><input type="search" inputMode="search" enterKeyHint="search" value={q} onChange={e => updateQuery(e.target.value)} placeholder="Job title, skill, employer or city" aria-label="Search jobs" />
           {q && <button type="button" className="clear" onClick={() => updateQuery("")} aria-label="Clear search"><X size={16}/></button>}</label>
-        <button type="button" className={`tw-filter-toggle${activeFilters ? " active" : ""}`} onClick={() => setShowFilters(s => !s)} aria-expanded={showFilters} aria-controls="tw-filter-groups"><SlidersHorizontal size={18}/><span>Filters{activeFilters ? ` (${activeFilters})` : ""}</span></button>
+        <button type="button" className={`tw-filter-toggle${activeFilters ? " active" : ""}`} onClick={() => setShowFilters(s => !s)} aria-label={`Filters${activeFilters ? ` (${activeFilters})` : ""}`} aria-expanded={showFilters} aria-controls="tw-filter-groups"><SlidersHorizontal size={18}/><span>Filters{activeFilters ? ` (${activeFilters})` : ""}</span></button>
         <button className="tw-desktop-search-cta" onClick={goToJobs}>Search jobs <ArrowRight size={16}/></button>
       </div>
       <div id="tw-filter-groups" className={`tw-filter-groups${showFilters ? " expanded" : ""}`}>

@@ -22,6 +22,11 @@ try {
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Overflow at ${width}`);
   if(!live){
    await page.getByRole('heading',{name:'Find your next job.'}).waitFor();
+   const filters=page.getByRole('button',{name:'Filters',exact:true});
+   await filters.click();assert(await filters.getAttribute('aria-expanded')==='true');
+   await page.getByRole('button',{name:'Remote',exact:true}).click();
+   assert(new URL(page.url()).searchParams.get('m')==='Remote');
+   await page.getByRole('button',{name:'Any type',exact:true}).click();
    const search=page.getByRole('searchbox',{name:'Search jobs'});
    await search.fill('assistant'); await page.waitForTimeout(500);
    assert(new URL(page.url()).searchParams.get('q')==='assistant');
