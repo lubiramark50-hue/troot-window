@@ -2,6 +2,18 @@ name: Apply Supabase schema
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/supabase/schema.sql'
+      - '.github/workflows/apply-schema.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: troot-production-schema
+  cancel-in-progress: false
 
 jobs:
   apply:
@@ -22,4 +34,4 @@ jobs:
       - name: Apply frontend/supabase/schema.sql
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f frontend/supabase/schema.sql
+        run: psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f frontend/supabase/schema.sql

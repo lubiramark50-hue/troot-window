@@ -20,13 +20,17 @@ jobs:
         with:
           node-version: 24
       - name: Install
-        run: npm install
+        run: npm ci
       - name: Typecheck and production build
         run: npm run build
       - name: Frontend API contract smoke test
         run: npm run test:contract
       - name: Verify employer logos and block misleading aggregator logos
         run: npm run test:logos
+      - name: Security regression checks
+        run: npm run test:security
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Worker matching and privacy checks
         run: npm run test:workers
       - name: Install browser and test worker flows on desktop and mobile

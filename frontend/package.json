@@ -17,7 +17,8 @@
     "icons": "node scripts/build-icons.mjs && npx capacitor-assets generate --android",
     "test:logos": "node scripts/verify-company-logos.mjs",
     "test:workers": "node scripts/test-workers.mjs",
-    "test:workers:e2e": "node scripts/e2e-workers.mjs"
+    "test:workers:e2e": "node scripts/e2e-workers.mjs",
+    "test:security": "node scripts/verify-security.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
