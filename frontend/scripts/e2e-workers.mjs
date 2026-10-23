@@ -61,7 +61,7 @@ try {
         return fulfill(200, filtered.slice(query.p_offset, query.p_offset + query.p_limit));
       }
       if (path.endsWith("/worker_profiles") && request.method()==="GET") {
-        if (failNextProfileRead) { failNextProfileRead = false; return fulfill(503,{message:"Temporary profile read failure"}); }
+        if (failNextProfileRead) { failNextProfileRead = false; return fulfill(400,{code:"PGRST999",message:"Temporary profile read failure"}); }
         return fulfill(200,stored);
       }
       if (path.endsWith("/worker_profiles") && request.method()==="POST") {
