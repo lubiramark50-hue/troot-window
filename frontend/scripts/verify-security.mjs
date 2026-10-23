@@ -5,6 +5,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const root = (path) => readFileSync(new URL("../../" + path, import.meta.url), "utf8");
 const schema = read("../supabase/schema.sql");
 const netlify = root("netlify.toml");
+const publishHeaders = read("../public/_headers");
 const deploy = root(".github/workflows/deploy-netlify.yml");
 const ci = root(".github/workflows/frontend-ci.yml");
 const lock = JSON.parse(read("../package-lock.json"));
@@ -49,7 +50,10 @@ for (const token of [
   "Content-Security-Policy", "frame-ancestors 'none'", "object-src 'none'",
   "script-src 'self'", "X-Frame-Options", "Strict-Transport-Security",
   "X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy",
-]) check(netlify.includes(token), `Missing production browser protection: ${token}`);
+]) {
+  check(netlify.includes(token), `Missing Netlify config protection: ${token}`);
+  check(publishHeaders.includes(token), `Missing published _headers protection: ${token}`);
+}
 check(!netlify.includes("unsafe-eval"), "Never allow eval in the production CSP");
 check(deploy.includes("npm ci"), "Production must install from lockfile");
 check(deploy.includes("npm audit --omit=dev --audit-level=high"), "Audit production dependencies");
