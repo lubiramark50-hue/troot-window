@@ -91,6 +91,10 @@ try {
     });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Approximate area detected: Kampala/i).waitFor();
+    await page.waitForFunction(() => {
+      const fields = [...document.querySelectorAll('input')];
+      return fields.some(input => input.value === "Kampala");
+    }, null, { timeout: 8000 });
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Granted permission should set a detected town");
     await page.getByRole("link",{name:"Amina Testworker",exact:false}).first().click();
     await page.getByRole("heading",{name:"Amina Testworker"}).waitFor();

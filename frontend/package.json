@@ -18,7 +18,9 @@
     "test:logos": "node scripts/verify-company-logos.mjs",
     "test:workers": "node scripts/test-workers.mjs",
     "test:workers:e2e": "node scripts/e2e-workers.mjs",
-    "test:security": "node scripts/verify-security.mjs"
+    "test:security": "node scripts/verify-security.mjs",
+    "icons:web": "node scripts/build-favicons.mjs",
+    "test:favicon": "node scripts/verify-favicon.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

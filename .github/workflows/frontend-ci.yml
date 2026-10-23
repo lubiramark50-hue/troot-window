@@ -27,6 +27,8 @@ jobs:
         run: npm run test:contract
       - name: Verify employer logos and block misleading aggregator logos
         run: npm run test:logos
+      - name: Verify branded favicons
+        run: npm run test:favicon
       - name: Security regression checks
         run: npm run test:security
       - name: Audit production dependencies
