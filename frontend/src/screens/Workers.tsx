@@ -62,8 +62,8 @@ export default function WorkerDirectory() {
     navigator.geolocation.getCurrentPosition(async position => {
       try {
         // Only after permission and a button click. Not stored in our database.
-        const lat = position.coords.latitude.toFixed(4);
-        const lon = position.coords.longitude.toFixed(4);
+        const lat = position.coords.latitude.toFixed(2);
+        const lon = position.coords.longitude.toFixed(2);
         const url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1&lat=" +
           encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lon);
         const response = await fetch(url, { headers: { Accept: "application/json" } });

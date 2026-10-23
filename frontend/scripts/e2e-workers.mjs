@@ -81,10 +81,14 @@ try {
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Wakiso","Permission denial must not erase manual town");
     await page.context().grantPermissions(["geolocation"], { origin });
     await page.context().setGeolocation({latitude:0.3136,longitude:32.5811});
-    await page.route("https://nominatim.openstreetmap.org/**", route =>
-      route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
+    await page.route("https://nominatim.openstreetmap.org/**", route => {
+      const query = new URL(route.request().url()).searchParams;
+      assert.equal(query.get("lat"), "0.31", "Share approximate latitude only");
+      assert.equal(query.get("lon"), "32.58", "Share approximate longitude only");
+      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
         address:{city:"Kampala",country_code:"ug"}
-      })}));
+      })});
+    });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Approximate area detected: Kampala/i).waitFor();
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Granted permission should set a detected town");
