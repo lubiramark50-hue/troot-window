@@ -6,6 +6,7 @@ import "./styles.css";
 import "./mobile-polish.css";
 import "./desktop-polish.css";
 import "./browsing.css";
+import "./workers.css";
 import { startAutomaticUpdates } from "./update-manager";
 
 startAutomaticUpdates();

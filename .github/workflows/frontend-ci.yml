@@ -27,3 +27,13 @@ jobs:
         run: npm run test:contract
       - name: Verify employer logos and block misleading aggregator logos
         run: npm run test:logos
+      - name: Worker matching and privacy checks
+        run: npm run test:workers
+      - name: Install browser and test worker flows on desktop and mobile
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:workers:e2e
+      - name: Existing job browser regression
+        run: |
+          VITE_SUPABASE_URL=https://fake.supabase.test VITE_SUPABASE_ANON_KEY=fake-publishable-key npm run build
+          node scripts/e2e-job-regression.mjs
