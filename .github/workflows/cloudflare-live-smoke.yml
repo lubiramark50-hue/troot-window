@@ -1,0 +1,54 @@
+name: Cloudflare Pages deployed-site smoke
+
+on:
+  push:
+    branches: [migration/cloudflare-pages-20261023]
+    paths:
+      - '.github/workflows/cloudflare-live-smoke.yml'
+      - 'frontend/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Verify HTTPS staging and protect production SEO
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify Cloudflare Pages staging, redirects, SEO and security
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://troot-window.pages.dev"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for path in "/" "/workers" "/jobs" "/workers/account" "/robots.txt" "/sitemap.xml" "/favicon.svg" "/og.png" "/version.json"; do
+            status="$(curl --silent --show-error --location --max-time 25 --retry 2 \
+              --output "$tmp/body" --dump-header "$tmp/headers" --write-out '%{http_code}' "$base$path")"
+            echo "$path: HTTP $status"
+            if [ "$status" != "200" ]; then echo "::error::Required staging URL failed: $path status=$status"; exit 1; fi
+            if [ "$path" = "/" ]; then
+              cp "$tmp/body" "$tmp/index.html"
+              cp "$tmp/headers" "$tmp/index.headers"
+            fi
+            if [ "$path" = "/robots.txt" ]; then
+              grep -Eiq '^User-agent:' "$tmp/body" || { echo "::error::Invalid robots.txt"; exit 1; }
+            fi
+            if [ "$path" = "/sitemap.xml" ]; then
+              grep -Eq '<urlset|<sitemapindex' "$tmp/body" || { echo "::error::Invalid XML sitemap"; exit 1; }
+              grep -q 'https://trootwindow.rentpay.site/' "$tmp/body" || { echo "::error::Indexed hostname changed in sitemap"; exit 1; }
+            fi
+          done
+          grep -q 'href="https://trootwindow.rentpay.site/"' "$tmp/index.html" || { echo "::error::Canonical URL changed"; exit 1; }
+          grep -q 'content="https://trootwindow.rentpay.site/"' "$tmp/index.html" || { echo "::error::Open Graph URL changed"; exit 1; }
+          for header in content-security-policy strict-transport-security x-content-type-options x-frame-options; do
+            grep -Eiq "^$header:" "$tmp/index.headers" || { echo "::error::Missing security header $header"; exit 1; }
+          done
+          grep -Eiq '^x-robots-tag:.*noindex' "$tmp/index.headers" || { echo "::error::Pages staging should be noindex"; exit 1; }
+          if grep -Eiq '<meta[^>]*name="robots"[^>]*noindex' "$tmp/index.html"; then
+            echo "::error::Noindex must be host scoped, not baked into the frontend HTML"
+            exit 1
+          fi
+          echo "PASS: Staging paths, SEO, security and indexing checks"
