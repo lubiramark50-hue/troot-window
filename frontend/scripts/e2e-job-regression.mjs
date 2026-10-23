@@ -142,6 +142,7 @@ try {
       console.error(`FAIL ${name}`, e);
     } finally { await page.close(); }
   }
+  await import("./e2e-design.mjs");
 } finally {
   await browser?.close();
   server.kill("SIGTERM");

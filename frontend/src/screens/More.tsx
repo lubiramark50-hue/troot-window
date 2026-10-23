@@ -5,7 +5,7 @@ import { LogoMark, TopBar } from "../ui";
 const tips = [
   { icon: HandCoins, t: "Never pay to get a job", d: "Real employers do not charge application, training or registration fees." },
   { icon: Lock, t: "Protect your details", d: "Never share passwords, OTPs, PINs or bank details with an employer." },
-  { icon: Flag, t: "Report anything off", d: "Use Report this job on any listing that feels wrong. We review every report." },
+  { icon: Flag, t: "Report anything off", d: "Use Report this job on a suspicious listing to send it for review." },
 ];
 
 export function More() {
@@ -16,7 +16,7 @@ export function More() {
         {tips.map(({ icon: I, t, d }) => <div className="tip" key={t}><span className="tip-ico"><I size={20} /></span><div><b>{t}</b><p>{d}</p></div></div>)}
       </div>
       <div className="card-group">
-        <div className="tip"><span className="tip-ico green"><BadgeCheck size={20} /></span><div><b>What Verified means</b><p>A person on our team checked the employer. Jobs without the badge are not yet checked.</p></div></div>
+        <div className="tip"><span className="tip-ico green"><BadgeCheck size={20} /></span><div><b>What Verified means</b><p>The listing comes from an approved employer’s own hiring feed. Public feed listings and direct submissions do not receive this badge. Always check the original posting.</p></div></div>
       </div>
       <div className="card-group menu">
         <Link to="/legal/privacy"><ShieldCheck size={19} />Privacy<ChevronRight size={18} /></Link>
@@ -36,7 +36,7 @@ const legal: Record<string, { title: string; body: string[] }> = {
   terms: { title: "Terms of use", body: [
     "Troot Window connects workers and employers. We remove listings that break our rules, but we cannot guarantee any employer or job.",
     "Employers must post honest, lawful jobs and must not charge applicants fees. Listings that break these rules are removed.",
-    "Verified means our team checked the employer at the time the badge was added. It is not a guarantee of future conduct.",
+    "Verified identifies listings from approved employers’ own hiring feeds. It is not a guarantee of the employer or the job.",
     "Always confirm details yourself before accepting work." ] },
 };
 

@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck, Search, ArrowUpRight, Sparkles, HeartHandshake } from "lucide-react";
+import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck, Search, ArrowUpRight } from "lucide-react";
 import { isConfigured } from "./supabase";
 import { LogoMark, ToastProvider } from "./ui";
 import Feed from "./screens/Feed";
@@ -27,7 +27,7 @@ function Identity({ large = false }: { large?: boolean }) {
 function DesktopSidebar() {
   return <aside className="tw-sidebar">
     <Identity large />
-    <p className="tw-side-label">YOUR WORKSPACE</p>
+    <p className="tw-side-label">JOB BOARD</p>
     <nav className="tw-side-menu" aria-label="Desktop navigation">
       {entries.map(({ to, label, Icon, ...props }) =>
         <NavLink key={to} to={to} end={"end" in props ? props.end : false} className={({ isActive }) => `tw-side-link${isActive ? " active" : ""}`}>
@@ -36,12 +36,11 @@ function DesktopSidebar() {
     </nav>
     <div className="tw-side-grow" />
     <div className="tw-side-message">
-      <div className="tw-side-symbol"><HeartHandshake size={22} /></div>
-      <strong>Your next chapter starts here.</strong>
-      <p>Find genuine opportunities and connect directly with employers.</p>
-      <NavLink to="/safety">How we keep you safe <ArrowUpRight size={14} /></NavLink>
+      <strong>Before you apply</strong>
+      <p>Check the original listing and never pay to apply.</p>
+      <NavLink to="/safety">Read safety tips <ArrowUpRight size={14} /></NavLink>
     </div>
-    <div className="tw-side-footer"><Sparkles size={15} /> Made for brighter futures</div>
+    <div className="tw-side-footer">Browse without an account</div>
   </aside>;
 }
 
@@ -60,7 +59,7 @@ function MobileTabs() {
 }
 
 const WithTabs = () => <><main className="viewport"><Outlet /></main><MobileTabs /></>;
-const Loading = () => <div className="screen full" aria-busy="true" />;
+const Loading = () => <div className="state" role="status" aria-busy="true">Loading page…</div>;
 
 export default function App() {
   if (!isConfigured) return <div className="state boot"><h3>Setup needed</h3><p>Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then rebuild.</p></div>;
