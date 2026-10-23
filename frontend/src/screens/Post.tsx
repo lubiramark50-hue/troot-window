@@ -90,7 +90,7 @@ export default function Post() {
           <Field name="email" error={errors.email} label="Email"><input name="email" type="email" inputMode="email" maxLength={254} autoComplete="email" {...inv("email")} /></Field>
         </fieldset>
       </div>
-      <div className="actionbar"><button className="btn btn-primary grow" type="submit" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={18} />Posting</> : "Post job"}</button></div>
+      <div className="actionbar"><div className="actionbar-inner"><button className="btn btn-primary grow" type="submit" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={18} />Posting</> : "Post job"}</button></div></div>
     </form>
   );
 }

@@ -114,7 +114,56 @@ try {
       assert.equal(await page.locator('.job-rich-content a[href^="javascript:"]').count(), 0);
       assert.equal(await page.locator('.job-rich-content a[href="https://example.org/opportunities"]').count(), 1);
       assert.equal(await page.evaluate(() => window.__injected), undefined);
+      // Regression: the fixed action must stay wholly inside the job content
+      // area, never behind the desktop sidebar or below the viewport.
+      async function assertActionsVisible(kind) {
+        const positions = await page.evaluate(() => {
+          const bar = document.querySelector(".actionbar");
+          const inner = document.querySelector(".actionbar-inner");
+          const apply = bar?.querySelector('a[href="https://example.org/opportunities"]');
+          const post = bar?.querySelector('button[type="submit"]');
+          const sidebar = document.querySelector(".tw-sidebar");
+          const content = document.querySelector(".detail, .form");
+          const rect = (node) => node?.getBoundingClientRect().toJSON();
+          return {
+            bar: rect(bar), inner: rect(inner), action: rect(apply || post),
+            sidebar: rect(sidebar), content: rect(content),
+            viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+            documentWidth: document.documentElement.scrollWidth,
+          };
+        });
+        const { bar, inner, action, sidebar, content, viewportWidth, viewportHeight, documentWidth } = positions;
+        assert(bar && inner && action, `${kind}: missing visible action bar`);
+        assert(action.width >= 120 && action.height >= 44, `${kind}: action button is too small: ${JSON.stringify(positions)}`);
+        assert(action.left >= -1 && action.right <= viewportWidth + 1, `${kind}: button extends outside the window: ${JSON.stringify(positions)}`);
+        assert(action.top >= -1 && action.bottom <= viewportHeight + 1, `${kind}: button is clipped vertically: ${JSON.stringify(positions)}`);
+        assert(bar.left >= -1 && bar.right <= viewportWidth + 1, `${kind}: bar clipped: ${JSON.stringify(positions)}`);
+        assert(documentWidth <= viewportWidth + 1, `${kind}: horizontal document overflow: ${JSON.stringify(positions)}`);
+        if (viewportWidth >= 900) {
+          assert(sidebar && action.left >= sidebar.right - 1, `${kind}: CTA is hidden behind desktop sidebar: ${JSON.stringify(positions)}`);
+          assert(content && Math.abs(inner.left - content.left) < 26, `${kind}: CTA does not align to the job details: ${JSON.stringify(positions)}`);
+          assert(inner.width <= 901, `${kind}: CTA container stretches beyond details: ${JSON.stringify(positions)}`);
+        }
+      }
+      if (name === "desktop") {
+        for (const width of [900, 1050, 1280, 1548]) {
+          await page.setViewportSize({ width, height: 878 });
+          await assertActionsVisible(`desktop ${width}px`);
+        }
+        await page.setViewportSize(viewport);
+      } else {
+        await assertActionsVisible("mobile 390px");
+      }
+      activeJob = { ...job, description: `<div><ul><li>${"VeryLongUnbrokenWordForOverflowTesting".repeat(24)}</li></ul></div>` };
+      await page.reload();
+      await page.locator(".job-rich-content li").waitFor();
+      await assertActionsVisible(`${name} long-description`);
+      const contentWidth = await page.locator(".detail").evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      assert(contentWidth.scroll <= contentWidth.client + 1, `${name}: job text overflows details: ${JSON.stringify(contentWidth)}`);
+      activeJob = job;
       await page.goto(`${origin}/post`);
+      await page.getByRole("button", { name: "Post job" }).waitFor();
+      await assertActionsVisible(`${name} post form`);
       assert.equal(await page.locator('input[name="website"]').count(), 0, "The autofill-prone honeypot must be absent");
       await page.locator('[name="title"]').fill("Community assistant needed");
       await page.locator('[name="employer"]').fill("Example Employer");
