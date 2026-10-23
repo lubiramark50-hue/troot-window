@@ -1,12 +1,10 @@
-name: Apply Supabase schema
+name: Apply Supabase schema (admin only)
 
+# SUPABASE_DB_URL belongs to the job-ingestion connection and cannot run DDL.
+# Database schema migrations must use a separate privileged connection and
+# should only be initiated intentionally after review.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/supabase/schema.sql'
-      - '.github/workflows/apply-schema.yml'
 
 permissions:
   contents: read
@@ -22,16 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check that SUPABASE_DB_URL exists
+      - name: Require migration-owner connection
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_MIGRATION_DB_URL: ${{ secrets.SUPABASE_MIGRATION_DB_URL }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::Add the SUPABASE_DB_URL repository secret first (Supabase > Project Settings > Database > Connection string > URI)."
+          if [ -z "$SUPABASE_MIGRATION_DB_URL" ]; then
+            echo "::error::Set SUPABASE_MIGRATION_DB_URL to a privileged Supabase database owner connection, or apply the reviewed SQL using the Supabase Management API. Never use the restricted ingestion SUPABASE_DB_URL."
             exit 1
           fi
 
-      - name: Apply frontend/supabase/schema.sql
+      - name: Apply reviewed schema atomically
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f frontend/supabase/schema.sql
+          SUPABASE_MIGRATION_DB_URL: ${{ secrets.SUPABASE_MIGRATION_DB_URL }}
+        run: psql "$SUPABASE_MIGRATION_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f frontend/supabase/schema.sql
