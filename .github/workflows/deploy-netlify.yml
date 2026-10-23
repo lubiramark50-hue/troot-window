@@ -57,3 +57,12 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Verify live response security headers
+        run: |
+          headers="$(mktemp)"
+          curl --fail --silent --show-error --head --retry 5 --retry-all-errors --retry-delay 3 "https://trootwindow.rentpay.site/" > "$headers"
+          grep -iq '^content-security-policy:' "$headers"
+          grep -iq '^strict-transport-security:' "$headers"
+          grep -iq '^x-content-type-options: nosniff' "$headers"
+          grep -iq '^x-frame-options: DENY' "$headers"
