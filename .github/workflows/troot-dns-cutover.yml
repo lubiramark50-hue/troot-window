@@ -1,0 +1,43 @@
+name: TROOT guarded DNS cutover
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Select inspect first. Cutover/rollback require exact confirmation.
+        type: choice
+        required: true
+        default: inspect
+        options:
+          - inspect
+          - cutover
+          - rollback
+      confirmation:
+        description: Exact required phrase for cutover or rollback
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: troot-rentpay-dns-change
+  cancel-in-progress: false
+
+jobs:
+  inspect-or-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate change guards without credentials
+        run: |
+          python3 -m py_compile scripts/troot_dns_cutover.py
+          python3 -m unittest discover -s scripts -p 'test_troot_dns_cutover.py' -v
+      - name: Inspect or update only TROOT CNAME
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_RENTPAY_DNS_TOKEN }}
+          OPERATION: ${{ inputs.operation }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: python3 scripts/troot_dns_cutover.py

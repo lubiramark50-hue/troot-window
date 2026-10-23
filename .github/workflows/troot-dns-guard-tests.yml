@@ -1,0 +1,21 @@
+name: TROOT DNS guard unit tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/troot_dns_cutover.py'
+      - 'scripts/test_troot_dns_cutover.py'
+      - '.github/workflows/troot-dns-cutover.yml'
+      - '.github/workflows/troot-dns-guard-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m py_compile scripts/troot_dns_cutover.py
+      - run: python3 -m unittest discover -s scripts -p 'test_troot_dns_cutover.py' -v
