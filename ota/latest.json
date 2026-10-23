@@ -1,7 +1,7 @@
 {
-  "versionCode": 0,
-  "version": "0.0.0",
-  "apkUrl": "",
-  "sha256": "",
+  "versionCode": 48,
+  "version": "48",
+  "apkUrl": "https://github.com/lubiramark50-hue/troot-window/releases/download/ota-48/Troot-Window.apk",
+  "sha256": "d4ff3daa87ea8a25c41b4245e8dffa595aec1c157fd372c54834489e6d995085",
   "mandatory": false
 }
