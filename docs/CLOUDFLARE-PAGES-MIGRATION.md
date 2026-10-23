@@ -6,7 +6,15 @@ Production domain remains **https://trootwindow.rentpay.site/**; Google-indexed 
 
 The new Pages preview must not be indexed: the host-specific `X-Robots-Tag: noindex` headers on `troot-window.pages.dev` and its versioned preview hosts protect against duplicate indexing. **Never** add a global `noindex` header, remove canonical URLs, or redirect the public domain to a temporary address.
 
-Cloudflare account `1aec604c2c2401940cd93136962a7ef5` currently **cannot see the DNS zone** `rentpay.site` (checked October 23, 2026). Do not change the site's existing nameservers or DNS until the authoritative zone, record owners, CNAME/SSL, and rollback path have been verified.
+### DNS migration status verified October 23, 2026
+
+The connected Cloudflare account `1aec604c2c2401940cd93136962a7ef5` now has a **new pending** zone `rentpay.site` (ID `c68f7e1c03a12d49386133431fd67c84`). **This is NOT the active/authoritative zone.** It is assigned `rob.ns.cloudflare.com` and `tara.ns.cloudflare.com`; external authoritative DNS still reports `curt.ns.cloudflare.com` and `riya.ns.cloudflare.com`. Its live `trootwindow.rentpay.site` CNAME still points to `troot-window.netlify.app`, and the production homepage remains HTTP 200.
+
+A non-proxied CNAME `trootwindow.rentpay.site -> troot-window.pages.dev` (TTL 300) was prepared **only in the new pending zone**; it has no live DNS effect until authoritative delegation changes. The Cloudflare Pages custom domain is still pending SSL/domain verification. Do not switch traffic prematurely.
+
+**Critical DNS safety issue:** The pending zone was populated from a scan with apex and `www` A/AAAA records containing public Cloudflare proxy edge IPs (for example `104.21.66.77` and `172.67.157.129`). Those are not a verified origin server, and proxying such targets may cause failures after activation. The scanned zone has imported MX/TXT/SRV SpaceMail and Resend records, but it is not a proven complete copy of the original zone. Unlisted custom subdomains or security settings could be missing. **Do not change nameservers in Spaceship to activate this zone without a full authoritative export, origin/DNS records comparison, and validated rollout/rollback.**
+
+Preferred path: connect/access the **existing authoritative Cloudflare account** hosting `curt.ns.cloudflare.com` and `riya.ns.cloudflare.com`, then update only its `trootwindow` CNAME to `troot-window.pages.dev` after Pages TLS verification. This preserves the registered nameservers, unrelated DNS, and the stable indexed hostname.
 
 ## Cloudflare Pages build configuration
 
