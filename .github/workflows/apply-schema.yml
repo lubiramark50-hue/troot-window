@@ -2,6 +2,18 @@ name: Apply Supabase schema
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/supabase/schema.sql'
+      - '.github/workflows/apply-schema.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: troot-production-schema
+  cancel-in-progress: false
 
 jobs:
   apply:
