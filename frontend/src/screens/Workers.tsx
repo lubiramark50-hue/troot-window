@@ -153,7 +153,7 @@ export function WorkerDetail() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   useEffect(() => {
-    let live = true; setBusy(true);
+    let live = true; setBusy(true); setError(""); setWorker(null);
     getWorker(id).then(result => { if (live) setWorker(result); })
       .catch(e => { if (live) setError(e instanceof Error ? e.message : "Unable to load profile."); })
       .finally(() => { if (live) setBusy(false); });

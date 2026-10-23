@@ -34,6 +34,7 @@ try {
   for (const viewport of [{ width:1280,height:850 },{ width:390,height:844 }]) {
     const page = await browser.newPage({viewport, permissions:[]});
     let stored = null;
+    let failNextProfileRead = true;
     const errors = [];
     const waitForTown = value => page.waitForFunction(expected => {
       const label = [...document.querySelectorAll("label")].find(node => node.textContent.trim().startsWith("Town or area"));
@@ -59,7 +60,10 @@ try {
             .some(area => area.toLowerCase() === query.p_town.trim().toLowerCase())));
         return fulfill(200, filtered.slice(query.p_offset, query.p_offset + query.p_limit));
       }
-      if (path.endsWith("/worker_profiles") && request.method()==="GET") return fulfill(200,stored);
+      if (path.endsWith("/worker_profiles") && request.method()==="GET") {
+        if (failNextProfileRead) { failNextProfileRead = false; return fulfill(503,{message:"Temporary profile read failure"}); }
+        return fulfill(200,stored);
+      }
       if (path.endsWith("/worker_profiles") && request.method()==="POST") {
         const submitted = JSON.parse(request.postData()||"{}");
         assert.equal(submitted.user_id,userId,"Only authenticated user's ID may be written");
@@ -139,9 +143,18 @@ try {
     await page.getByRole("textbox",{name:"Email address"}).fill("worker@example.test");
     await page.getByLabel("Password",{exact:true}).fill("password123");
     await page.getByRole("button",{name:"Sign in"}).click();
+    await page.getByRole("heading",{name:"Unable to load your profile"}).waitFor();
+    assert.equal(await page.getByRole("button",{name:"Create profile"}).count(),0,"Failed profile reads must never expose a blank editable profile");
+    await page.getByRole("button",{name:"Retry loading profile"}).click();
     await page.getByRole("heading",{name:"Your worker profile"}).waitFor();
     await page.getByRole("textbox",{name:"Public name"}).fill("Test Plumber");
-    await page.getByRole("checkbox",{name:"Plumbing"}).check();
+    for (const service of ["Plumbing","Electrical","Mechanic","Cleaning","Building","Carpentry","Painting","Welding","Gardening","Appliance repair","Tailoring","Moving","Other"]) {
+      await page.getByRole("checkbox",{name:service,exact:true}).check();
+    }
+    await page.getByRole("button",{name:"Create profile"}).click();
+    await page.getByText("Choose no more than 12 services.").waitFor();
+    assert.equal(stored,null,"Invalid 13-service registration must never be written");
+    await page.getByRole("checkbox",{name:"Other",exact:true}).uncheck();
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Approximate location selected: Kampala/).waitFor();
     assert.equal(await page.getByRole("textbox",{name:"City or town"}).inputValue(),"Kampala","Location can autofill worker profile");
