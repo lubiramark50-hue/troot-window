@@ -69,3 +69,6 @@
 @media(max-width:670px){.worker-header{flex-direction:column}.worker-fields,.worker-fields.two,.worker-list{grid-template-columns:1fr}.worker-panel{padding:17px}.worker-checks{grid-template-columns:repeat(2,minmax(0,1fr))}.worker-results-head{flex-direction:column}.worker-account-heading{align-items:flex-start;flex-direction:column}}
 @media(max-width:400px){.worker-card-link{gap:10px}.worker-photo{width:55px;height:55px}.worker-checks{grid-template-columns:1fr}}
 
+
+.worker-more{display:flex;justify-content:center;padding:22px 0 10px}
+.worker-more button{min-width:180px}

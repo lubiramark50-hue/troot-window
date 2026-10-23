@@ -2,21 +2,30 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { createRequire } from "node:module";
+const workersSource = readFileSync(new URL("../src/workers.ts", import.meta.url), "utf8");
+const isoCodes = workersSource.match(/export const COUNTRY_CODES = "([^"]+)"/)?.[1];
+assert(isoCodes && isoCodes.split(" ").length === 249, "Expect full ISO country dataset");
 const source = readFileSync(new URL("../src/worker-location.ts", import.meta.url), "utf8")
-  .replace('import { COUNTRIES } from "./workers";', 'const COUNTRIES = [{code:"UG"}, {code:"KE"}, {code:"TZ"}, {code:"RW"}];');
+  .replace('import { COUNTRIES } from "./workers";', 'const COUNTRIES = "' + isoCodes + '".split(" ").map(code => ({code}));');
 const compiled = ts.transpileModule(source, { compilerOptions:{ module:ts.ModuleKind.CommonJS, target:ts.ScriptTarget.ES2022 }}).outputText;
 const moduleExports = {};
 new Function("exports","require",compiled)(moduleExports, createRequire(import.meta.url));
 const { parseBigDataCloud, parseOpenStreetMap, reverseGeocode, geolocationError } = moduleExports;
 const expected = {country:"UG",town:"Kampala",locality:"Nakawa",provider:"BigDataCloud"};
 assert.deepEqual(parseBigDataCloud({countryCode:"UG",city:"Kampala Capital City",locality:"Nakawa"}),expected);
-assert.equal(parseBigDataCloud({countryCode:"US",city:"New York"}),null);
+assert.equal(parseBigDataCloud({countryCode:"ZZ",city:"Unknown"}),null);
 assert.equal(parseBigDataCloud({countryCode:"UG",city:""}),null);
 assert.deepEqual(parseOpenStreetMap({address:{country_code:"ug",city:"Kampala Capital City",suburb:"Nakawa"}}),
   {country:"UG",town:"Kampala",locality:"Nakawa",provider:"OpenStreetMap"});
 assert.deepEqual(parseOpenStreetMap({address:{country_code:"ke",town:"Nairobi City",city_district:"Westlands"}}),
   {country:"KE",town:"Nairobi",locality:"Westlands",provider:"OpenStreetMap"});
 assert.equal(parseOpenStreetMap({address:{country_code:"ug"}}),null);
+assert.equal(parseBigDataCloud({countryCode:"US",city:"New York"}).town,"New York");
+assert.equal(parseBigDataCloud({countryCode:"FR",city:"Paris"}).country,"FR");
+assert.equal(parseBigDataCloud({countryCode:"JP",city:"東京"}).town,"東京");
+assert.equal(parseBigDataCloud({countryCode:"BR",city:"São Paulo"}).country,"BR");
+assert.equal(parseOpenStreetMap({address:{country_code:"de",city:"München"}}).country,"DE");
+assert.equal(parseOpenStreetMap({address:{country_code:"in",city:"Bengaluru"}}).country,"IN");
 assert.match(geolocationError({code:1}),/permission/i);
 assert.match(geolocationError({code:2}),/device/i);
 assert.match(geolocationError({code:3}),/timed out/i);

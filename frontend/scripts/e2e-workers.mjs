@@ -44,12 +44,16 @@ try {
       const fulfill = (status, value) => route.fulfill({status,headers,body:typeof value==="string"?value:JSON.stringify(value)});
       if (request.method()==="OPTIONS") return fulfill(200, {});
       if (path.endsWith("/worker_directory") && request.method()==="GET") {
-        const workers = [publicWorker];
-        const filtered = workers.filter(w =>
-          (!url.searchParams.has("country_code") || w.country_code === url.searchParams.get("country_code").replace("eq.","")) &&
-          (!url.searchParams.has("services") || url.searchParams.get("services").includes(w.services[0])));
-        const byId = url.searchParams.has("id");
-        return fulfill(200, byId ? filtered[0] ?? null : filtered);
+        return fulfill(200, publicWorker);
+      }
+      if (path.endsWith("/rpc/search_public_workers") && request.method()==="POST") {
+        const query = JSON.parse(request.postData() || "{}");
+        assert(query.p_limit <= 50, "Enforce bounded page size");
+        const filtered = [publicWorker].filter(w => w.country_code === query.p_country &&
+          (query.p_service === "" || w.services.includes(query.p_service)) &&
+          (!query.p_town || [w.town, ...(w.travel_mode === "fixed" ? [] : w.service_areas)]
+            .some(area => area.toLowerCase() === query.p_town.trim().toLowerCase())));
+        return fulfill(200, filtered.slice(query.p_offset, query.p_offset + query.p_limit));
       }
       if (path.endsWith("/worker_profiles") && request.method()==="GET") return fulfill(200,stored);
       if (path.endsWith("/worker_profiles") && request.method()==="POST") {
@@ -66,7 +70,7 @@ try {
       if (path.endsWith("/auth/v1/logout")) return fulfill(204,"");
       return fulfill(404,{message:"Unknown test route: "+path});
     });
-    await page.goto(origin+"/workers");
+    await page.goto(origin+"/workers?country=UG");
     await page.getByRole("heading",{name:"Find a worker"}).waitFor();
     await page.getByRole("heading",{name:"Amina Testworker"}).waitFor();
     assert.equal(await page.getByRole("link",{name:/Call worker/i}).first().getAttribute("href"),"tel:+256700111222");
@@ -133,8 +137,8 @@ try {
     await page.getByRole("checkbox",{name:"Plumbing"}).check();
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Approximate location selected: Kampala/).waitFor();
-    assert.equal(await page.getByRole("textbox",{name:"Town or district"}).inputValue(),"Kampala","Location can autofill worker profile");
-    await page.getByRole("textbox",{name:"Town or district"}).fill("Kampala");
+    assert.equal(await page.getByRole("textbox",{name:"City or town"}).inputValue(),"Kampala","Location can autofill worker profile");
+    await page.getByRole("textbox",{name:"City or town"}).fill("Kampala");
     await page.getByRole("textbox",{name:"Public contact phone"}).fill("+256 700 111 222");
     await page.getByRole("checkbox",{name:/Publish my worker listing/i}).check();
     await page.getByRole("button",{name:"Create profile"}).click();
@@ -164,6 +168,41 @@ try {
     await page.close();
     console.log("PASS worker directory, manual search, location denied, phone/WhatsApp, auth, session restore, edit/pause/logout: "+viewport.width+"px");
   }
+  // International visitor: browser en-US should default to US, and any ISO country is selectable.
+  // Do not require GPS or assume all users are in East Africa.
+  const global = await browser.newPage({ viewport: {width:390,height:844}, locale:"en-US" });
+  const globalErrors = [];
+  global.on("pageerror", e => globalErrors.push(e.message));
+  await global.route("https://fake.supabase.test/**", route => {
+    const request = route.request();
+    const u = new URL(request.url());
+    const h = {"access-control-allow-origin":"*", "access-control-allow-headers":"*", "access-control-allow-methods":"GET,POST,OPTIONS", "content-type":"application/json"};
+    if (request.method()==="OPTIONS") return route.fulfill({status:200,headers:h,body:"{}"});
+    if (u.pathname.endsWith("/rpc/search_public_workers")) {
+      const q = JSON.parse(request.postData()||"{}");
+      assert(["US","JP","BR"].includes(q.p_country),"International country query reaches backend");
+      const us = Array.from({length:30},(_,i)=>({...publicWorker,id:String(i+1).padStart(8,"0")+"-2222-4333-8444-555555555555",display_name:"US Worker "+(i+1),country_code:"US",town:"Boston",service_areas:["Cambridge"]}));
+      return route.fulfill({status:200,headers:h,body:JSON.stringify((q.p_country==="US"?us:[]).slice(q.p_offset,q.p_offset+q.p_limit))});
+    }
+    return route.fulfill({status:200,headers:h,body:"null"});
+  });
+  await global.goto(origin+"/workers");
+  await global.getByRole("heading",{name:"Find a worker"}).waitFor();
+  assert.equal(await global.getByRole("combobox",{name:"Country"}).inputValue(),"US","US visitor defaults to their browser locale region");
+  await global.getByRole("heading",{name:"US Worker 1",exact:true}).waitFor();
+  await global.getByRole("button",{name:"Load more workers"}).click();
+  await global.getByRole("heading",{name:"US Worker 30",exact:true}).waitFor();
+  assert.equal(await global.locator(".worker-card").count(),30,"Server-pagination loads workers beyond first page");
+  await global.getByRole("combobox",{name:"Country"}).selectOption("JP");
+  await global.getByRole("heading",{name:"No matching workers yet"}).waitFor();
+  await global.getByRole("combobox",{name:"Country"}).selectOption("BR");
+  await global.waitForFunction(() => [...document.querySelectorAll("select")].some(select => select.value === "BR"));
+  assert.equal(await global.getByRole("combobox",{name:"Country"}).inputValue(),"BR");
+  await global.getByRole("combobox",{name:"Country"}).selectOption("US");
+  await global.getByRole("heading",{name:"US Worker 1",exact:true}).waitFor();
+  assert.deepEqual(globalErrors, [], "No errors in international worker browsing");
+  await global.close();
+  console.log("PASS global visitor US locale, 249-country dropdown, JP/BR switching, 30-worker pagination");
 } finally {
   if (browser) await browser.close();
   server.kill("SIGTERM");

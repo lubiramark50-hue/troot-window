@@ -5,7 +5,7 @@ import { CheckCircle2, LogOut, LocateFixed } from "lucide-react";
 import { TopBar } from "../ui";
 import { detectCurrentArea } from "../worker-location";
 import { workerSupabase } from "../supabase";
-import { COUNTRIES, SERVICES, contactPhone, getOwnProfile, saveOwnProfile, safeImageUrl, type TravelMode, type WorkerInput, type OwnProfile } from "../workers";
+import { COUNTRIES, SERVICES, preferredCountry, validCountryCode, contactPhone, getOwnProfile, saveOwnProfile, safeImageUrl, type TravelMode, type WorkerInput, type OwnProfile } from "../workers";
 
 type Mode = "login" | "signup" | "forgot" | "reset";
 type Fields = {
@@ -20,6 +20,9 @@ const empty: Fields = {
   phone: "", whatsapp: "", description: "", work_examples: "", photo_url: "",
   experience_years: "", starting_price: "", is_active: false,
 };
+function newProfileFields(): Fields {
+  return { ...empty, country_code: preferredCountry(typeof navigator !== "undefined" ? navigator.languages : []) };
+}
 function fromProfile(p: OwnProfile): Fields {
   return {
     display_name: p.display_name, services: p.services, skills: p.skills, country_code: p.country_code,
@@ -33,8 +36,9 @@ function fromProfile(p: OwnProfile): Fields {
 function checkProfile(form: Fields): string | null {
   if (form.display_name.trim().length < 2) return "Enter the name customers will see.";
   if (!form.services.length) return "Choose at least one service.";
-  if (form.town.trim().length < 2) return "Enter a town or district.";
-  if (!contactPhone(form.phone)) return "Enter an international phone number, for example +256 700 000 000.";
+  if (!validCountryCode(form.country_code)) return "Choose a country for your worker listing.";
+  if (form.town.trim().length < 2) return "Enter a city, town or district.";
+  if (!contactPhone(form.phone)) return "Enter your phone number with its international country dialling code, e.g. +1 202 555 0123.";
   if (form.whatsapp.trim() && !contactPhone(form.whatsapp)) return "WhatsApp must use an international number.";
   if (form.photo_url.trim() && !safeImageUrl(form.photo_url.trim())) return "Photo link must start with https://.";
   if (form.experience_years && (!/^\d+$/.test(form.experience_years) || Number(form.experience_years) > 70)) return "Years of experience must be between 0 and 70.";
@@ -47,7 +51,7 @@ export default function WorkerAccount() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [form, setForm] = useState<Fields>(empty);
+  const [form, setForm] = useState<Fields>(newProfileFields);
   const [hasProfile, setHasProfile] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,13 +78,13 @@ export default function WorkerAccount() {
     return () => { live = false; subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
-    if (!user) { setHasProfile(false); setForm(empty); return; }
+    if (!user) { setHasProfile(false); setForm(newProfileFields()); return; }
     let live = true;
     setLoadingProfile(true); setError("");
     getOwnProfile(user.id).then(profile => {
       if (!live) return;
       setHasProfile(!!profile);
-      setForm(profile ? fromProfile(profile) : empty);
+      setForm(profile ? fromProfile(profile) : newProfileFields());
     }).catch(e => { if (live) setError(e instanceof Error ? e.message : "Unable to load your profile."); })
       .finally(() => { if (live) setLoadingProfile(false); });
     return () => { live = false; };
@@ -190,21 +194,21 @@ export default function WorkerAccount() {
             <label>Skills and specialties<input value={form.skills} onChange={e => edit("skills", e.target.value)} maxLength={600} placeholder="e.g. bathroom installations, solar wiring" /></label>
             <div className="worker-fields two">
               <label>Country<select value={form.country_code} onChange={e => edit("country_code", e.target.value)}>{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</select></label>
-              <label>Town or district<input value={form.town} onChange={e => edit("town", e.target.value)} maxLength={100} required /></label>
+              <label>City or town<input value={form.town} onChange={e => edit("town", e.target.value)} maxLength={100} required /></label>
             </div>
             <div className="worker-location-actions">
               <button className="worker-location" type="button" onClick={locateProfile} disabled={locatingProfile} aria-busy={locatingProfile}><LocateFixed size={17} /> {locatingProfile ? "Detecting your town…" : "Use my approximate location"}</button>
             </div>
             {locationFeedback && <p role="status" className="worker-message">{locationFeedback}</p>}
             <p className="worker-muted worker-location-note">Optional. Your approximate coordinates go to BigDataCloud for town detection (OpenStreetMap fallback); they are not stored in your profile. You can always type or correct the town yourself.</p>
-            <label>Other towns/areas you serve, separated by commas<input value={form.service_areas} onChange={e => edit("service_areas", e.target.value)} placeholder="e.g. Entebbe, Wakiso" maxLength={1200} /></label>
+            <label>Other towns/areas you serve (in the selected country), separated by commas<input value={form.service_areas} onChange={e => edit("service_areas", e.target.value)} placeholder="e.g. Brooklyn, Queens" maxLength={1200} /></label>
             <div className="worker-fields two">
               <label>Where you work<select value={form.travel_mode} onChange={e => edit("travel_mode", e.target.value as TravelMode)}><option value="mobile">I travel to customers</option><option value="fixed">Customers visit me</option><option value="both">Both</option></select></label>
               <label>Availability<select value={form.availability} onChange={e => edit("availability", e.target.value)}>{["Available","Limited availability","Unavailable","Ask for availability"].map(x => <option key={x}>{x}</option>)}</select></label>
             </div>
             <div className="worker-fields two">
-              <label>Public contact phone<input type="tel" value={form.phone} onChange={e => edit("phone", e.target.value)} placeholder="+256 700 000 000" maxLength={25} required /></label>
-              <label>WhatsApp (optional)<input type="tel" value={form.whatsapp} onChange={e => edit("whatsapp", e.target.value)} placeholder="+256 700 000 000" maxLength={25} /></label>
+              <label>Public contact phone<input type="tel" value={form.phone} onChange={e => edit("phone", e.target.value)} placeholder="e.g. +44 7700 900123" maxLength={25} required /></label>
+              <label>WhatsApp (optional)<input type="tel" value={form.whatsapp} onChange={e => edit("whatsapp", e.target.value)} placeholder="e.g. +44 7700 900123" maxLength={25} /></label>
             </div>
             <label>About your work<textarea value={form.description} onChange={e => edit("description", e.target.value)} rows={4} maxLength={1200} /></label>
             <label>Examples of previous work (description)<textarea value={form.work_examples} onChange={e => edit("work_examples", e.target.value)} rows={3} maxLength={1200} /></label>
