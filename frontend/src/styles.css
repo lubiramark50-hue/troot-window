@@ -34,9 +34,9 @@ h1,h2,h3,p{margin:0}
 .tab svg{transition:transform .15s}
 .tab:active svg{transform:scale(.88)}
 .tab.on{color:var(--blue-600)}
-.tab:nth-child(3){color:#fff}
-.tab:nth-child(3) svg{background:var(--green-600);border-radius:12px;padding:5px;width:32px;height:32px;box-shadow:0 4px 10px rgba(15,138,85,.32)}
-.tab:nth-child(3) span{color:var(--muted)}
+.tab:nth-child(4){color:#fff}
+.tab:nth-child(4) svg{background:var(--green-600);border-radius:12px;padding:5px;width:32px;height:32px;box-shadow:0 4px 10px rgba(15,138,85,.32)}
+.tab:nth-child(4) span{color:var(--muted)}
 
 /* Headers */
 .home-head{padding:calc(var(--sat) + 14px) 16px 4px}
@@ -326,7 +326,7 @@ body {background:var(--bg);font-family:Inter,"SF Pro Display",system-ui,-apple-s
 .tabbar{background:rgba(255,255,255,.97);border-top:1px solid #E9EEF5;box-shadow:0 -6px 24px rgba(18,48,94,.035)}
 .tab{color:#8997AA;font-weight:700}
 .tab.on{color:var(--tw-blue)}
-.tab:nth-child(3) svg{background:linear-gradient(135deg,#14AA6E,#0E8355);border-radius:12px}
+.tab:nth-child(4) svg{background:linear-gradient(135deg,#14AA6E,#0E8355);border-radius:12px}
 .state h3{color:var(--tw-navy)}
 .tw-search-area .search input:focus{outline:none}
 

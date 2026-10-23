@@ -32,6 +32,8 @@ const legal: Record<string, { title: string; body: string[] }> = {
     "You can browse and apply without an account. We do not ask for your name or location to search.",
     "Saved jobs stay on your device. When you post a job or report a listing, we store what you submit and a one-way hash of your network address to prevent abuse. We never store the raw address.",
     "Contact details you add to a job are shown publicly as soon as you post it. Only add details you are happy to share.",
+    "Worker accounts use email authentication. Your login email is never included in your public worker profile. Only published worker profiles, including contact details, are visible to visitors. You can pause your listing.",
+    "If you request approximate location search, your browser asks permission and sends approximate coordinates to OpenStreetMap to identify the town. You can use manual search instead.",
     "To ask us to remove a listing or any data, contact the team through the address on our store listing." ] },
   terms: { title: "Terms of use", body: [
     "Troot Window connects workers and employers. We remove listings that break our rules, but we cannot guarantee any employer or job.",

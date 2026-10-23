@@ -54,6 +54,11 @@ for (const token of [
   check(netlify.includes(token), `Missing Netlify config protection: ${token}`);
   check(publishHeaders.includes(token), `Missing published _headers protection: ${token}`);
 }
+for (const content of [netlify, publishHeaders]) {
+  check(content.includes("https://nominatim.openstreetmap.org"), "Allow only the consent-based town lookup endpoint");
+  check(content.includes("geolocation=(self)"), "Allow same-origin optional geolocation prompts");
+  check(content.includes("img-src 'self' data: https:"), "Allow HTTPS worker photos without weakening script-src");
+}
 check(!netlify.includes("unsafe-eval"), "Never allow eval in the production CSP");
 check(deploy.includes("npm ci"), "Production must install from lockfile");
 check(deploy.includes("npm audit --omit=dev --audit-level=high"), "Audit production dependencies");

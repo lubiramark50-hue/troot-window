@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck, Search, ArrowUpRight } from "lucide-react";
+import { Bookmark, BriefcaseBusiness, Plus, ShieldCheck, Search, ArrowUpRight, UsersRound } from "lucide-react";
 import { isConfigured } from "./supabase";
 import { LogoMark, ToastProvider } from "./ui";
 import Feed from "./screens/Feed";
@@ -9,9 +9,13 @@ import { Legal, More } from "./screens/More";
 
 const Detail = lazy(() => import("./screens/Detail"));
 const Post = lazy(() => import("./screens/Post"));
+const WorkerDirectory = lazy(() => import("./screens/Workers"));
+const WorkerDetail = lazy(() => import("./screens/Workers").then(m => ({ default: m.WorkerDetail })));
+const WorkerAccount = lazy(() => import("./screens/WorkerAccount"));
 
 const entries = [
   { to: "/", label: "Discover jobs", Icon: Search, end: true },
+  { to: "/workers", label: "Find a worker", Icon: UsersRound },
   { to: "/saved", label: "Saved jobs", Icon: Bookmark },
   { to: "/post", label: "Post a job", Icon: Plus },
   { to: "/safety", label: "Trust & safety", Icon: ShieldCheck },
@@ -52,6 +56,7 @@ function MobileTabs() {
     </NavLink>;
   return <nav className="tabbar" aria-label="Main">
     {item("/", "Jobs", BriefcaseBusiness, true)}
+    {item("/workers", "Workers", UsersRound)}
     {item("/saved", "Saved", Bookmark)}
     {item("/post", "Post", Plus)}
     {item("/safety", "Safety", ShieldCheck)}
@@ -70,9 +75,12 @@ export default function App() {
         <Routes>
           <Route element={<WithTabs />}>
             <Route path="/" element={<Feed />} />
+            <Route path="/workers" element={<WorkerDirectory />} />
             <Route path="/saved" element={<Saved />} />
             <Route path="/safety" element={<More />} />
           </Route>
+          <Route path="/workers/account" element={<main className="viewport"><WorkerAccount /></main>} />
+          <Route path="/workers/:id" element={<main className="viewport"><WorkerDetail /></main>} />
           <Route path="/jobs/:id" element={<main className="viewport"><Detail /></main>} />
           <Route path="/post" element={<main className="viewport"><Post /></main>} />
           <Route path="/legal/:kind" element={<main className="viewport"><Legal /></main>} />

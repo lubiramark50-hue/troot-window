@@ -31,3 +31,13 @@ jobs:
         run: npm run test:security
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Worker matching and privacy checks
+        run: npm run test:workers
+      - name: Install browser and test worker flows on desktop and mobile
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:workers:e2e
+      - name: Existing job browser regression
+        run: |
+          VITE_SUPABASE_URL=https://fake.supabase.test VITE_SUPABASE_ANON_KEY=fake-publishable-key npm run build
+          node scripts/e2e-job-regression.mjs
