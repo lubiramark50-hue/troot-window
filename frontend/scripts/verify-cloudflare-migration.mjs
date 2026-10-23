@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 
-const read = (name) => readFileSync(new URL(name, import.meta.url), "utf8");
+const read = (name) => readFileSync(new URL(name, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const headers = read("../public/_headers");
 const redirects = read("../public/_redirects");
 const html = read("../index.html");
@@ -27,7 +27,11 @@ assert.match(html, /<meta property="og:url" content="https:\/\/trootwindow\.rent
 assert.match(robots, /^User-agent:/mi);
 assert.match(sitemap, /<urlset\b/);
 assert.match(sitemap, /https:\/\/trootwindow\.rentpay\.site\//);
-assert.match(redirects, /^\/\*\s+\/index\.html\s+200\s*$/m, "Keep existing React Router deep-link fallback");
+for (const path of ["/jobs", "/jobs/:id", "/workers", "/workers/:id", "/saved", "/post", "/safety", "/legal/:kind"]) {
+  assert.ok(redirects.split("\n").some(line => line.trim().split(/\s+/).join(" ") === `${path} /index.html 200`), `Keep supported deep link ${path}`);
+}
+assert.doesNotMatch(redirects, /^\/\*\s+\/index\.html\s+200/m, "Missing assets must not become soft-404 HTML");
+assert.ok(existsSync(new URL("../public/404.html", import.meta.url)), "Pages needs an explicit missing-file document");
 for (const name of ["favicon.svg", "favicon.ico", "og.png", "manifest.json"]) {
   assert.ok(existsSync(new URL("../public/" + name, import.meta.url)), `Keep SEO/PWA asset: ${name}`);
 }

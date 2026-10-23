@@ -1,1 +1,20 @@
-/*    /index.html   200
+# Preserve all supported React Router deep links, including trailing slashes.
+# Do not rewrite missing scripts/images and unknown pages into soft-404 HTML.
+/jobs /index.html 200
+/jobs/ /index.html 200
+/jobs/:id /index.html 200
+/jobs/:id/ /index.html 200
+/workers /index.html 200
+/workers/ /index.html 200
+/workers/:id /index.html 200
+/workers/:id/ /index.html 200
+/saved /index.html 200
+/saved/ /index.html 200
+/post /index.html 200
+/post/ /index.html 200
+/safety /index.html 200
+/safety/ /index.html 200
+/more /index.html 200
+/more/ /index.html 200
+/legal/:kind /index.html 200
+/legal/:kind/ /index.html 200
