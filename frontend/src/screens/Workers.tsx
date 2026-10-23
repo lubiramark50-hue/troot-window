@@ -71,7 +71,7 @@ export default function WorkerDirectory() {
         const json = await response.json();
         const address = json.address || {};
         const detectedCountry = String(address.country_code || "").toUpperCase();
-        const detectedTown = String(address.city || address.town || address.municipality || address.village || address.county || address.state_district || "").trim();
+        const detectedTown = String(address.city || address.town || address.municipality || address.village || address.county || address.state_district || "").replace(/\s+(?:capital city|city|district|municipality|county)$/i, "").trim();
         if (!COUNTRIES.some(c => c.code === detectedCountry) || !detectedTown)
           throw new Error("We could not detect a supported town. Please enter it manually.");
         const next = new URLSearchParams(params);

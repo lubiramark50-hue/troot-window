@@ -16,6 +16,7 @@ const make = (o = {}) => ({
   ...o,
 });
 assert(matchesWorker(make(), { country:"UG", service:"Plumbing", town:"Kampala" }));
+assert(matchesWorker(make(), { country:"UG", service:"Plumbing", town:"Kampala Capital City" }));
 assert(matchesWorker(make(), { country:"UG", service:"Plumbing", town:"wAKiso" }));
 assert(!matchesWorker(make(), { country:"KE", service:"Plumbing", town:"Kampala" }));
 assert(!matchesWorker(make(), { country:"UG", service:"Mechanic", town:"Kampala" }));

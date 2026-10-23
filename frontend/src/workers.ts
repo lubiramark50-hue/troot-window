@@ -36,7 +36,7 @@ export type WorkerInput = Omit<OwnProfile, "id" | "updated_at">;
 export type WorkerFilter = { service: string; country: string; town: string };
 
 export function normalizeArea(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ").replace(/\s+(?:capital city|city|district|municipality|county)$/, "");
 }
 export function matchesWorker(worker: WorkerProfile, filter: WorkerFilter): boolean {
   if (worker.country_code !== filter.country || !worker.services.includes(filter.service)) return false;
