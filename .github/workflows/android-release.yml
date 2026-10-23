@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - name: Generate build version
         run: |
           mkdir -p public

@@ -30,7 +30,12 @@ jobs:
           cache-dependency-path: frontend/package.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Verify security configuration
+        run: npm run test:security
+      - name: Audit production dependencies for high and critical advisories
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Generate build version
         run: |
@@ -48,7 +53,16 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Deploy to Netlify
-        run: npx --yes netlify-cli@latest deploy --prod --dir=dist --message "Deploy $GITHUB_SHA"
+        run: npx --yes netlify-cli@27.14.1 deploy --prod --dir=dist --message "Deploy $GITHUB_SHA"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Verify live response security headers
+        run: |
+          headers="$(mktemp)"
+          curl --fail --silent --show-error --head --retry 5 --retry-all-errors --retry-delay 3 "https://trootwindow.rentpay.site/" > "$headers"
+          grep -iq '^content-security-policy:' "$headers"
+          grep -iq '^strict-transport-security:' "$headers"
+          grep -iq '^x-content-type-options: nosniff' "$headers"
+          grep -iq '^x-frame-options: DENY' "$headers"

@@ -44,7 +44,7 @@ jobs:
             echo "::error::Netlify preview secrets are missing."
             exit 1
           fi
-          npx --yes netlify-cli@latest deploy --dir=dist --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Troot Window review preview $GITHUB_SHA" | tee /tmp/netlify-preview.txt
+          npx --yes netlify-cli@27.14.1 deploy --dir=dist --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Troot Window review preview $GITHUB_SHA" | tee /tmp/netlify-preview.txt
           PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.netlify\.app' /tmp/netlify-preview.txt | tail -n 1)"
           if [ -z "$PREVIEW_URL" ]; then
             echo "::error::No Netlify preview URL was returned."
