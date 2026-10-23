@@ -196,7 +196,7 @@ export default function WorkerAccount() {
           <p className="worker-muted">Your email and password are private. Only the profile information you choose to publish is visible to customers.</p>
           {error && <p className="banner-err" role="alert">{error}</p>}
           {message && <p className="worker-message" role="status"><CheckCircle2 size={16} /> {message}</p>}
-          <form className="worker-form" onSubmit={saveProfile}>
+          <form className="worker-form" onSubmit={saveProfile} noValidate>
             <label>Public name<input value={form.display_name} onChange={e => edit("display_name", e.target.value)} maxLength={100} required /></label>
             <fieldset><legend>Services offered</legend><div className="worker-checks">{SERVICES.map(s => <label key={s}><input type="checkbox" checked={form.services.includes(s)} onChange={e => edit("services", e.target.checked ? [...form.services,s] : form.services.filter(x => x !== s))} /> {s}</label>)}</div></fieldset>
             <label>Skills and specialties<input value={form.skills} onChange={e => edit("skills", e.target.value)} maxLength={600} placeholder="e.g. bathroom installations, solar wiring" /></label>
