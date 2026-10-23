@@ -16,7 +16,8 @@ function check(condition, message) {
 // A React/Vite SPA does not need React Server Components. Fail closed if
 // the server-side packages vulnerable to React RSC advisories enter the tree.
 const rsc = Object.keys(lock.packages ?? {}).filter((name) =>
-  /(?:^|\\/)react-server-dom-(?:webpack|parcel|turbopack)(?:\\/|$)/.test(name));
+  ["react-server-dom-webpack", "react-server-dom-parcel", "react-server-dom-turbopack"]
+    .some((pkg) => name.endsWith("node_modules/" + pkg)));
 check(rsc.length === 0, `Review React Server Components dependencies: ${rsc.join(", ")}`);
 
 // External job descriptions may be HTML, but never executable raw HTML.
