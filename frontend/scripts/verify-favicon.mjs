@@ -4,7 +4,7 @@ import sharp from "sharp";
 const dir = new URL("../public/", import.meta.url);
 const read = name => readFileSync(new URL(name, dir));
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const manifest = JSON.parse(read("site.webmanifest").toString("utf8"));
+const manifest = JSON.parse(read("manifest.json").toString("utf8"));
 const ico = read("favicon.ico");
 assert.equal(ico.readUInt16LE(0), 0);
 assert.equal(ico.readUInt16LE(2), 1, "ICO format, not HTML");
@@ -26,7 +26,7 @@ for (const dimension of [16, 32, 48, 128, 192, 512]) {
   assert.equal(metadata.height, dimension);
   assert(statSync(new URL(name, dir)).size > 100);
 }
-for (const name of ["favicon.ico", "favicon-32.png", "favicon-16.png", "apple-touch-icon.png", "site.webmanifest"]) {
+for (const name of ["favicon.ico", "favicon-32.png", "favicon-16.png", "apple-touch-icon.png", "manifest.json"]) {
   assert(html.includes("/" + name + "?v=20261023"), "Missing versioned favicon link: " + name);
 }
 assert(manifest.icons.some(icon => icon.sizes === "192x192"));
