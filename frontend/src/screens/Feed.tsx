@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowRight, ArrowUpRight, BadgeCheck, Bookmark, BriefcaseBusiness, CheckCircle2, ChevronRight, Clock3, MapPin, Search, SearchX, ShieldCheck, SlidersHorizontal, Sparkles, WifiOff, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BadgeCheck, Bookmark, BriefcaseBusiness, ChevronRight, MapPin, Search, SearchX, ShieldCheck, SlidersHorizontal, WifiOff, X } from "lucide-react";
 import { CATEGORIES, MODES, jobsApi, modeLabel, sourceLabel, type Job } from "../api";
 import { Avatar, LogoMark, splitReq, timeAgo, useSaved } from "../ui";
 
@@ -35,14 +35,11 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
   return <div className="state"><WifiOff size={34} /><h3>Couldn't load jobs</h3><p>{message}</p><button className="btn btn-primary" onClick={onRetry}>Try again</button></div>;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Construction: "🏗️", Technology: "💻", Trades: "🛠️", Hospitality: "🏨", Transport: "🚚", Other: "✨",
-};
-
 export default function Feed() {
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
-  const [term, setTerm] = useState(q);
+  const term = q.trim();
+  const urlQuery = params.get("q") ?? "";
   const category = params.get("c") ?? "All";
   const mode = params.get("m") ?? "All";
   const verified = params.get("v") === "1";
@@ -57,28 +54,38 @@ export default function Feed() {
   const [showFilters, setShowFilters] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const requestVersion = useRef(0);
 
-  useEffect(() => { const t = window.setTimeout(() => setTerm(q.trim()), 300); return () => window.clearTimeout(t); }, [q]);
+  useEffect(() => { setQ(urlQuery); }, [urlQuery]);
+  const updateQuery = (value: string) => {
+    setQ(value);
+    const next = new URLSearchParams(params);
+    if (value) next.set("q", value); else next.delete("q");
+    setParams(next, { replace: true });
+  };
   useEffect(() => {
     let live = true;
-    setBusy(true); setError(""); setPage(1);
-    jobsApi.list({ q: term, category, mode, verified, page: 1, pageSize: 20 })
+    requestVersion.current += 1;
+    setBusy(true); setMore(false); setItems([]); setError(""); setPage(1);
+    const timer = window.setTimeout(() => jobsApi.list({ q: term, category, mode, verified, page: 1, pageSize: 20 })
       .then(r => { if (!live) return; setItems(r.items); setTotal(r.totalCount); setHasNext(r.hasNext); })
       .catch((e: Error) => live && setError(e.message))
-      .finally(() => live && setBusy(false));
-    return () => { live = false; };
+      .finally(() => live && setBusy(false)), 300);
+    return () => { live = false; window.clearTimeout(timer); };
   }, [term, category, mode, verified, nonce]);
   const loadMore = useCallback(() => {
     if (more || busy || !hasNext) return;
     setMore(true);
+    const version = requestVersion.current;
     const next = page + 1;
     jobsApi.list({ q: term, category, mode, verified, page: next, pageSize: 20 })
       .then(r => {
+        if (version !== requestVersion.current) return;
         setItems(cur => [...cur, ...r.items.filter(x => !cur.some(c => c.id === x.id))]);
         setPage(next); setHasNext(r.hasNext);
       })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setMore(false));
+      .catch((e: Error) => { if (version === requestVersion.current) setError(e.message); })
+      .finally(() => { if (version === requestVersion.current) setMore(false); });
   }, [more, busy, hasNext, page, term, category, mode, verified]);
   useEffect(() => {
     const el = sentinel.current;
@@ -103,27 +110,23 @@ export default function Feed() {
 
   return <div className="screen tw-home">
     <div className="tw-mobile-brand"><div className="tw-mobile-brandline"><LogoMark size={34} /><span className="tw-wordmark">Troot <b>Window</b></span></div><Link to="/safety" className="tw-mobile-safe" aria-label="Safety tips"><ShieldCheck size={20} /></Link></div>
-    <div className="tw-desktop-toolbar"><div className="tw-toolbar-breadcrumb"><span>Discover</span><ChevronRight size={14}/><b>Find your next opportunity</b></div><Link to="/post" className="tw-toolbar-post"><BriefcaseBusiness size={16}/> For employers <ArrowUpRight size={15}/></Link></div>
+    <div className="tw-desktop-toolbar"><div className="tw-toolbar-breadcrumb"><span>Discover</span><ChevronRight size={14}/><b>Jobs</b></div><Link to="/post" className="tw-toolbar-post"><BriefcaseBusiness size={16}/> For employers <ArrowUpRight size={15}/></Link></div>
 
     <section className="tw-hero" aria-labelledby="tw-hero-title">
       <div className="tw-hero-copy">
-        <div className="tw-eyebrow"><Sparkles size={14}/> THE FUTURE LOOKS BRIGHT</div>
-        <h1 id="tw-hero-title">Find a job that <span>moves your life forward.</span></h1>
-        <p>Real opportunities, genuine connections. Discover your next big step with Troot Window.</p>
-        <button type="button" className="tw-hero-cta" onClick={goToJobs}>Explore opportunities <ArrowRight size={18}/></button>
-        <div className="tw-hero-trust"><span><CheckCircle2 size={16}/> Free to explore</span><span><ShieldCheck size={16}/> Safety first</span></div>
+        <h1 id="tw-hero-title">Find your next <span>job.</span></h1>
+        <p>Browse listings, save jobs, and contact employers. No account needed to browse.</p>
       </div>
-      <div className="tw-hero-visual" aria-hidden="true"><div className="tw-hero-orbit"/><div className="tw-hero-photo"/><div className="tw-hero-visual-label">Work.<br/>Grow.<br/>Belong.<span/></div></div>
     </section>
 
     <div className="tw-search-area">
       <div className="tw-section-intro">
-        <div><span className="tw-kicker">YOUR NEXT OPPORTUNITY</span><h2>Explore jobs made for you</h2></div>
+        <div><h2>Search jobs</h2></div>
         <Link to="/post" className="tw-post-link">Hiring? Post a job <ArrowRight size={16}/></Link>
       </div>
       <div className="tw-search-row">
-        <label className="search tw-search"><Search size={20}/><input type="search" inputMode="search" enterKeyHint="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Job title, skill, employer or city" aria-label="Search jobs" />
-          {q && <button type="button" className="clear" onClick={() => setQ("")} aria-label="Clear search"><X size={16}/></button>}</label>
+        <label className="search tw-search"><Search size={20}/><input type="search" inputMode="search" enterKeyHint="search" value={q} onChange={e => updateQuery(e.target.value)} placeholder="Job title, skill, employer or city" aria-label="Search jobs" />
+          {q && <button type="button" className="clear" onClick={() => updateQuery("")} aria-label="Clear search"><X size={16}/></button>}</label>
         <button type="button" className={`tw-filter-toggle${activeFilters ? " active" : ""}`} onClick={() => setShowFilters(s => !s)} aria-expanded={showFilters} aria-controls="tw-filter-groups"><SlidersHorizontal size={18}/><span>Filters{activeFilters ? ` (${activeFilters})` : ""}</span></button>
         <button className="tw-desktop-search-cta" onClick={goToJobs}>Search jobs <ArrowRight size={16}/></button>
       </div>
@@ -136,30 +139,26 @@ export default function Feed() {
     </div>
 
     <section className="tw-categories" aria-labelledby="category-heading">
-      <div className="tw-section-heading"><div><span className="tw-kicker">BROWSE YOUR WAY</span><h2 id="category-heading">Popular categories</h2></div><button onClick={() => setFilter("c", "All")} className="tw-text-button">View all <ArrowRight size={15}/></button></div>
+      <div className="tw-section-heading"><div><h2 id="category-heading">Categories</h2></div><button onClick={() => setFilter("c", "All")} className="tw-text-button">All categories <ArrowRight size={15}/></button></div>
       <div className="tw-category-grid">{CATEGORIES.map(c => <button type="button" key={c} className={`tw-category-card${category === c ? " on" : ""}`} aria-pressed={category === c} onClick={() => setFilter("c", category === c ? "All" : c)}>
-        <span className="tw-category-emoji" aria-hidden="true">{CATEGORY_ICONS[c]}</span><strong>{c}</strong><span>Explore jobs <ArrowRight size={12}/></span>
+        <strong>{c}</strong>
       </button>)}</div>
     </section>
 
     <div className="tw-content-grid" ref={resultsRef}>
-      <section className="tw-results" aria-labelledby="results-heading">
-        <div className="tw-section-heading tw-results-heading"><div><span className="tw-kicker">OPPORTUNITIES FOR YOU</span><h2 id="results-heading">{category === "All" ? "Latest job opportunities" : `${category} jobs`}</h2></div>
+      <section className="tw-results" aria-labelledby="results-heading" aria-busy={busy}>
+        <div className="tw-section-heading tw-results-heading"><div><h2 id="results-heading">{category === "All" ? "Latest jobs" : `${category} jobs`}</h2></div>
           {!busy && !error && <span className="tw-result-count">{total.toLocaleString()} {total === 1 ? "job" : "jobs"}</span>}
         </div>
-        {busy ? <Skeletons/> : error && items.length === 0 ? <ErrorState message={error} onRetry={() => setNonce(n => n+1)}/> : items.length === 0 ? <div className="state tw-empty"><SearchX size={38}/><h3>No matching opportunities yet</h3><p>Try another category, search term, or work type.</p><button className="btn btn-primary" onClick={() => { setQ(""); setParams(new URLSearchParams()); }}>Clear filters</button></div> : <>
+        {busy ? <><span className="sr-only" role="status">Loading jobs…</span><Skeletons/></> : error && items.length === 0 ? <ErrorState message={error} onRetry={() => setNonce(n => n+1)}/> : items.length === 0 ? <div className="state tw-empty"><SearchX size={38}/><h3>No matching jobs</h3><p>Try another category, search term, or work type.</p><button className="btn btn-primary" onClick={() => { setQ(""); setParams(new URLSearchParams()); }}>Clear filters</button></div> : <>
           <div className="list">{items.map(j => <JobRow key={j.id} job={j}/>)}</div>
           <div ref={sentinel} className="sentinel">{more && <Skeletons n={2}/ >}{error && <button className="btn btn-ghost" onClick={loadMore}>Retry loading more</button>}</div>
         </>}
         <p className="source-note tw-source-note">Listings may come directly from employers or attributed public job feeds. Always check the original posting and never pay to apply. Company logos identify employers and do not imply endorsement. <a href="/employer-logos/CREDITS.html" target="_blank" rel="noopener noreferrer">Logo credits</a>.</p>
       </section>
-      <aside className="tw-discover-aside">
-        <div className="tw-trust-card"><div className="tw-trust-icon"><ShieldCheck size={28}/></div><span className="tw-kicker">YOUR SAFETY MATTERS</span><h3>Find work with more confidence.</h3><p>Know where listings come from, recognize verified employers, and report anything suspicious.</p>
-          <div className="tw-trust-list"><span><CheckCircle2 size={17}/> Clear employer information</span><span><CheckCircle2 size={17}/> Visible verification status</span><span><CheckCircle2 size={17}/> One-tap job reporting</span></div>
-          <Link to="/safety">Explore safety tips <ArrowRight size={16}/></Link>
-        </div>
-        <div className="tw-employer-card"><div className="tw-employer-icon"><BriefcaseBusiness size={21}/></div><h3>Looking for great people?</h3><p>Post your opening and connect directly with job seekers.</p><Link to="/post">Post a job <ArrowRight size={16}/></Link></div>
-        <div className="tw-small-note"><Clock3 size={17}/><span>New opportunities are added regularly. Save the ones you like so you can return later.</span></div>
+      <aside className="tw-discover-aside" aria-label="Job search guidance">
+        <div className="tw-trust-card"><ShieldCheck size={22}/><h3>Never pay to apply</h3><p>Check who posted a job before sharing personal details. A verified badge identifies an approved employer source; it is not a guarantee.</p><Link to="/safety">Read safety tips <ArrowRight size={16}/></Link></div>
+        <div className="tw-employer-card"><h3>Hiring?</h3><p>Add the role, pay, location, and a way for applicants to reach you.</p><Link to="/post">Post a job <ArrowRight size={16}/></Link></div>
       </aside>
     </div>
   </div>;
