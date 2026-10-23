@@ -86,7 +86,7 @@ try {
       assert.equal(query.get("lat"), "0.31", "Share approximate latitude only");
       assert.equal(query.get("lon"), "32.58", "Share approximate longitude only");
       return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
-        address:{city:"Kampala",country_code:"ug"}
+        address:{city:"Kampala Capital City",country_code:"ug"}
       })});
     });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
