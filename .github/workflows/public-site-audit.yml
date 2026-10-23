@@ -1,0 +1,68 @@
+name: Public website and Netlify access audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-websites:
+    name: Check live public URLs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check GENZ and TROOT public pages without changing data
+        shell: bash
+        run: |
+          set -euo pipefail
+          failures=0
+          for site in "https://trootwindow.rentpay.site" "https://genz-campus.pages.dev"; do
+            echo "::group::Public site HTTP checks"
+            for path in / /robots.txt /sitemap.xml /favicon.svg; do
+              headers="$(mktemp)"
+              body="$(mktemp)"
+              status="$(curl --silent --show-error --location --retry 2 --max-time 25 --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$site$path")" || status=000
+              mime="$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true)"
+              echo "$site$path: HTTP $status, ${mime:-no Content-Type}"
+              if [ "$status" != "200" ]; then failures=$((failures+1)); fi
+              if [ "$status" = "200" ]; then
+                case "$path" in
+                  /robots.txt) if ! grep -Eq '^User-agent:' "$body"; then echo "::error::robots.txt is not a valid robots file"; failures=$((failures+1)); fi ;;
+                  /sitemap.xml) if ! grep -Eq '<urlset|<sitemapindex' "$body"; then echo "::error::sitemap.xml is not an XML sitemap"; failures=$((failures+1)); fi ;;
+                  /favicon.svg) if ! grep -q '<svg' "$body"; then echo "::error::favicon.svg is not an SVG"; failures=$((failures+1)); fi ;;
+                esac
+              fi
+              rm -f "$headers" "$body"
+            done
+            echo "::endgroup::"
+          done
+          if [ "$failures" -ne 0 ]; then echo "::error::$failures public URL or content checks failed"; exit 1; fi
+          echo "PASS: Public website checks succeeded."
+
+  netlify-credentials:
+    name: Verify existing Netlify deployment permission
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - name: Check API authorization without showing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
+            echo "::error::Required Netlify Actions secrets are absent or empty."
+            exit 1
+          fi
+          status="$(curl --silent --show-error --max-time 25 --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            --header 'Accept: application/json' \
+            "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID")" || status=000
+          case "$status" in
+            200) echo "PASS: Netlify API key can read the configured site." ;;
+            401|403) echo "::error::Netlify denied this token for the configured site (HTTP $status). Authorize or replace NETLIFY_AUTH_TOKEN for that site."; exit 1 ;;
+            404) echo "::error::Netlify site ID is not visible to this token (HTTP 404). Confirm NETLIFY_SITE_ID and token account."; exit 1 ;;
+            *) echo "::error::Netlify API health check failed (HTTP $status)."; exit 1 ;;
+          esac
