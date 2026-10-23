@@ -55,7 +55,8 @@ for (const token of [
   check(publishHeaders.includes(token), `Missing published _headers protection: ${token}`);
 }
 for (const content of [netlify, publishHeaders]) {
-  check(content.includes("https://nominatim.openstreetmap.org"), "Allow only the consent-based town lookup endpoint");
+  check(content.includes("https://nominatim.openstreetmap.org"), "Allow consent-based backup town lookup endpoint");
+  check(content.includes("https://api.bigdatacloud.net"), "Allow consent-based primary town lookup endpoint");
   check(content.includes("geolocation=(self)"), "Allow same-origin optional geolocation prompts");
   check(content.includes("img-src 'self' data: https:"), "Allow HTTPS worker photos without weakening script-src");
 }

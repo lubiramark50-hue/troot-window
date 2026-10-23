@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { MapPin, Phone, MessageCircle, LocateFixed, Search, UserRound, ArrowRight } from "lucide-react";
 import { TopBar } from "../ui";
+import { detectCurrentArea } from "../worker-location";
 import { COUNTRIES, SERVICES, contactPhone, getWorker, listWorkers, safeImageUrl, whatsappUrl, type WorkerProfile } from "../workers";
 
 function WorkerPhoto({ worker }: { worker: WorkerProfile }) {
@@ -43,10 +44,19 @@ export default function WorkerDirectory() {
   const [locationMessage, setLocationMessage] = useState("");
   const [locating, setLocating] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const locationRequest = useRef(0);
+  useEffect(() => () => { locationRequest.current += 1; }, []);
   const change = (name: string, value: string) => {
-    const next = new URLSearchParams(params);
-    if (value) next.set(name, value); else next.delete(name);
-    setParams(next, { replace: true });
+    if (name === "town" || name === "country") {
+      locationRequest.current += 1; // Do not overwrite manual edits with a late GPS response.
+      setLocating(false);
+      setLocationMessage("");
+    }
+    setParams(current => {
+      const next = new URLSearchParams(current);
+      if (value) next.set(name, value); else next.delete(name);
+      return next;
+    }, { replace: true });
   };
   useEffect(() => {
     let live = true;
@@ -56,33 +66,30 @@ export default function WorkerDirectory() {
       .finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
   }, [country, service, town, refresh]);
-  const locate = () => {
-    if (!navigator.geolocation) { setLocationMessage("Location is unavailable. Enter your town instead."); return; }
+  const locate = async () => {
+    const request = ++locationRequest.current;
     setLocating(true); setLocationMessage("");
-    navigator.geolocation.getCurrentPosition(async position => {
-      try {
-        // Only after permission and a button click. Not stored in our database.
-        const lat = position.coords.latitude.toFixed(2);
-        const lon = position.coords.longitude.toFixed(2);
-        const url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1&lat=" +
-          encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lon);
-        const response = await fetch(url, { headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error("Could not identify the town.");
-        const json = await response.json();
-        const address = json.address || {};
-        const detectedCountry = String(address.country_code || "").toUpperCase();
-        const detectedTown = String(address.city || address.town || address.municipality || address.village || address.county || address.state_district || "").replace(/\s+(?:capital city|city|district|municipality|county)$/i, "").trim();
-        if (!COUNTRIES.some(c => c.code === detectedCountry) || !detectedTown)
-          throw new Error("We could not detect a supported town. Please enter it manually.");
-        const next = new URLSearchParams(params);
-        next.set("country", detectedCountry); next.set("town", detectedTown);
-        setParams(next, { replace: true });
-        setLocationMessage("Approximate area detected: " + detectedTown + ". You can change it.");
-      } catch (e) {
-        setLocationMessage(e instanceof Error ? e.message : "Enter your town manually.");
-      } finally { setLocating(false); }
-    }, () => { setLocating(false); setLocationMessage("Location access was denied or unavailable. Enter your town manually."); }, { timeout: 12000, maximumAge: 60000, enableHighAccuracy: false });
+    try {
+      const detected = await detectCurrentArea();
+      if (locationRequest.current !== request) return;
+      setParams(current => {
+        const next = new URLSearchParams(current);
+        next.set("country", detected.country);
+        next.set("town", detected.town);
+        return next;
+      }, { replace: true });
+      setLocationMessage("Your approximate area: " + detected.town +
+        (detected.locality ? " (near " + detected.locality + ")" : "") +
+        ". Search results now use this town. You can adjust it manually.");
+    } catch (e) {
+      if (locationRequest.current === request)
+        setLocationMessage(e instanceof Error ? e.message : "Automatic location failed. Enter your town manually.");
+    } finally {
+      if (locationRequest.current === request) setLocating(false);
+    }
   };
+  const clearTown = () => change("town", "");
+  const countryName = COUNTRIES.find(c => c.code === country)?.label ?? country;
   return <div className="screen worker-page">
     <header className="worker-header">
       <div><p className="worker-kicker">LOCAL SERVICES</p><h1 className="large-title">Find a worker</h1><p>Find local tradespeople and service providers. Browse and contact anyone without signing in.</p></div>
@@ -94,21 +101,27 @@ export default function WorkerDirectory() {
           <select value={service} onChange={e => change("service", e.target.value)}>{SERVICES.map(x => <option key={x}>{x}</option>)}</select>
         </label>
         <label>Country
-          <select value={country} onChange={e => { const next = new URLSearchParams(params); next.set("country", e.target.value); next.delete("town"); setParams(next); }}>{COUNTRIES.map(x => <option key={x.code} value={x.code}>{x.label}</option>)}</select>
+          <select value={country} onChange={e => {
+            locationRequest.current += 1; setLocating(false); setLocationMessage("");
+            setParams(current => { const next = new URLSearchParams(current); next.set("country", e.target.value); next.delete("town"); return next; }, { replace: true });
+          }}>{COUNTRIES.map(x => <option key={x.code} value={x.code}>{x.label}</option>)}</select>
         </label>
         <label>Town or area
           <input value={town} maxLength={100} placeholder="e.g. Kampala" onChange={e => change("town", e.target.value)} />
         </label>
       </div>
-      <button type="button" className="worker-location" onClick={locate} disabled={locating}><LocateFixed size={17} /> {locating ? "Finding your area…" : "Use my approximate location"}</button>
-      <p className="worker-muted worker-location-note">Optional. With permission, OpenStreetMap receives your approximate coordinates to identify a town. You can always search manually. Geocoding data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>.</p>
+      <div className="worker-location-actions">
+        <button type="button" className="worker-location" onClick={locate} disabled={locating} aria-busy={locating}><LocateFixed size={17} /> {locating ? "Detecting your town…" : "Use my approximate location"}</button>
+        {town && <button type="button" className="worker-location-clear" onClick={clearTown}>Search all of {countryName}</button>}
+      </div>
+      <p className="worker-muted worker-location-note">Location is optional. If you allow it, your approximate coordinates go to <a href="https://www.bigdatacloud.com/docs/article/why-is-reverse-geocoding-api-free" target="_blank" rel="noopener noreferrer">BigDataCloud</a> to find your town (it uses device and network location signals). If unavailable, we may ask <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>. Troot Window does not save your GPS coordinates. You can always enter your town yourself.</p>
       {locationMessage && <p role="status" className="worker-message">{locationMessage}</p>}
     </section>
-    <div className="worker-results-head"><h2><Search size={19} /> Available listings</h2><small>Matched by country, service and areas served, not exact distance</small></div>
+    <div className="worker-results-head"><h2><Search size={19} /> Available listings</h2><small>{town ? "Searching " + town + ", " + countryName + " · " : "Searching " + countryName + " · "}Matches by service area, not GPS distance</small></div>
     {busy ? <div className="state" role="status" aria-busy="true">Loading worker profiles…</div> :
       error ? <div className="state" role="alert"><h3>Couldn't load workers</h3><p>{error}</p><button className="btn btn-primary" onClick={() => setRefresh(n => n+1)}>Try again</button></div> :
       results.length ? <div className="worker-list">{results.map(worker => <WorkerCard key={worker.id} worker={worker} />)}</div> :
-      <div className="state worker-empty"><h3>No matching workers yet</h3><p>Try another service or town. Workers must opt into a public listing before they appear here.</p><Link to="/workers/account" className="btn btn-soft">Register as a worker</Link></div>}
+      <div className="state worker-empty"><h3>No matching workers yet</h3><p>{town ? "No public " + service.toLowerCase() + " profiles currently serve " + town + ". Try searching the whole country or another area." : "No public " + service.toLowerCase() + " profiles currently match in " + countryName + ". Try another service."} Workers must register and publish their own listings before they appear.</p>{town && <button type="button" className="btn btn-primary" onClick={clearTown}>Show workers throughout {countryName}</button>}<Link to="/workers/account" className="btn btn-soft">Register as a worker</Link></div>}
   </div>;
 }
 export function WorkerDetail() {

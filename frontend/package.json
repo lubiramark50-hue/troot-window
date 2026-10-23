@@ -20,7 +20,8 @@
     "test:workers:e2e": "node scripts/e2e-workers.mjs",
     "test:security": "node scripts/verify-security.mjs",
     "icons:web": "node scripts/build-favicons.mjs",
-    "test:favicon": "node scripts/verify-favicon.mjs"
+    "test:favicon": "node scripts/verify-favicon.mjs",
+    "test:location": "node scripts/test-worker-location.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
