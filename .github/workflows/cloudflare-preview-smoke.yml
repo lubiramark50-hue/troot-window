@@ -1,0 +1,51 @@
+name: TROOT Cloudflare preview smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        required: true
+        description: Cloudflare Pages preview URL, not production
+        default: https://troot-window.pages.dev
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify preview URL is restricted to Cloudflare Pages
+        env:
+          PREVIEW_URL: ${{ inputs.preview_url }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$PREVIEW_URL" =~ ^https://([a-z0-9-]+\.)?troot-window\.pages\.dev/?$ ]]; then
+            echo "::error::Only this project's HTTPS pages.dev preview host is allowed"
+            exit 1
+          fi
+          echo "BASE=${PREVIEW_URL%/}" >> "$GITHUB_ENV"
+      - name: Check security headers, noindex, canonical URLs, assets and deep links
+        shell: bash
+        run: |
+          set -euo pipefail
+          temp="$(mktemp -d)"
+          trap 'rm -rf "$temp"' EXIT
+          curl --fail --silent --show-error --location --max-time 25 --dump-header "$temp/headers" "$BASE/" --output "$temp/index.html"
+          grep -iq '^x-robots-tag: *noindex' "$temp/headers"
+          grep -iq '^content-security-policy:' "$temp/headers"
+          grep -iq '^strict-transport-security:' "$temp/headers"
+          grep -iq '^x-content-type-options: *nosniff' "$temp/headers"
+          grep -q 'href="https://trootwindow.rentpay.site/"' "$temp/index.html"
+          if grep -qi '<meta name="robots" content="noindex' "$temp/index.html"; then
+            echo "::error::Never embed a production-blocking noindex HTML tag"; exit 1
+          fi
+          for path in /robots.txt /sitemap.xml /favicon.svg /workers /jobs /workers/account; do
+            status="$(curl --silent --show-error --location --max-time 25 --output "$temp/body" --write-out '%{http_code}' "$BASE$path")"
+            echo "$path : HTTP $status"
+            test "$status" = "200"
+          done
+          grep -q 'trootwindow.rentpay.site' "$temp/body" || true
+          echo "PASS: Cloudflare Pages preview preserves security and indexing boundaries"

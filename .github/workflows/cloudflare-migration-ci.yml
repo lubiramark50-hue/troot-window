@@ -1,0 +1,51 @@
+name: TROOT Cloudflare migration checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [migration/cloudflare-pages-20261023]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/cloudflare-migration-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Verify security, favicon and deployment safety
+        run: |
+          npm run test:security
+          npm run test:favicon
+          npm run test:cloudflare
+          npm run test:contract
+          npm run test:workers
+      - name: Build exactly the published Vite app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - name: Confirm Pages distribution includes SEO, headers and assets
+        run: |
+          set -eu
+          test -f dist/index.html
+          test -f dist/_headers
+          test -f dist/_redirects
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          test -f dist/favicon.svg
+          grep -q 'https://troot-window.pages.dev/\*' dist/_headers
+          grep -q 'https://trootwindow.rentpay.site/' dist/index.html

@@ -10,3 +10,12 @@
 
 /version.json
   Cache-Control: no-store, max-age=0
+
+# Cloudflare Pages preview hosts must never compete with the indexed
+# trootwindow.rentpay.site hostname. Host-targeted rules MUST remain narrow:
+# no X-Robots-Tag: noindex on /* or on the existing custom domain.
+https://troot-window.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.troot-window.pages.dev/*
+  X-Robots-Tag: noindex
