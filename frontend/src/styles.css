@@ -25,7 +25,9 @@ h1,h2,h3,p{margin:0}
 /* App frame */
 .viewport{height:100%;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--tab-h) + var(--sab) + 12px)}
 .screen{animation:enter .2s ease-out;min-height:100%}
-.screen.full{display:flex;flex-direction:column;padding-bottom:calc(var(--bar-h) + var(--sab))}
+/* A transform animation on an ancestor makes position:fixed action bars
+   relative to the form while it animates, temporarily putting CTAs offscreen. */
+.screen.full{display:flex;flex-direction:column;padding-bottom:calc(var(--bar-h) + var(--sab));animation:none}
 @keyframes enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* Tab bar (restrained glass) */
