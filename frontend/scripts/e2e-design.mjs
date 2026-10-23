@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 const origin = process.env.TEST_ORIGIN || 'http://127.0.0.1:4179';
 const live = !origin.includes('127.0.0.1');
-const out = new URL('../../../../outputs/', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+const out = process.env.TEST_OUTPUT_DIR || new URL('../../../../outputs/', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({headless:true});
 try {
@@ -14,7 +14,7 @@ try {
   if(!live) await page.route('https://fake.supabase.test/**', async route=>{
    if(fail) return route.fulfill({status:500,json:{message:'Test unavailable'}});
    const job={id:'11111111-2222-4333-8444-555555555555',title:'Community technology assistant with responsibility for customer support and reporting',employer_name:'Example Employer',location:'Kampala',category:'Technology',mode:'OnSite',pay:'UGX 80,000/day',created_at:new Date().toISOString(),published_at:new Date().toISOString(),employer_verified:false,description:'Help customers and prepare reports.',requirements:'Communication, Teamwork',status:'published',source:null,phone:null,whatsapp:null,email:'jobs@example.org'};
-   return route.fulfill({status:200,headers:{'content-range':'0-0/1'},json:empty?[]:[job]});
+   return route.fulfill({status:200,headers:{'content-range':empty?'*/0':'0-0/1','access-control-expose-headers':'content-range'},json:empty?[]:[job]});
   });
   await page.goto(origin,{waitUntil:'networkidle'});
   await page.locator('.job-row, .state').first().waitFor();
