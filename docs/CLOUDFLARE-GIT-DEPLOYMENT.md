@@ -13,12 +13,17 @@ Do not switch DNS or delete the Netlify site until HTTPS preview checks, Supabas
 Pages' Vite build stamps `dist/version.json` and the compiled application's build ID
 from `CF_PAGES_COMMIT_SHA`. It does not modify the Android `public/version.json` or
 OTA manifest. Without Cloudflare build metadata, the existing GitHub/Netlify build
-version behavior is preserved. The deployed smoke/browser workflows wait for the
-exact commit being tested, so a previous healthy deployment cannot mask a failed
-new build.
+version behavior is preserved. The new `await-cloudflare-release.mjs` helper can
+wait for the exact commit being tested, so a previous healthy deployment cannot
+mask a failed new build. **Workflow wiring is pending:** the current GitHub OAuth
+connection rejected changes to `.github/workflows` because it lacks `workflow`
+scope. The existing hosted workflows have NOT been updated to invoke this helper.
+Run it explicitly before live checks until the separately supplied workflow patch
+is applied through an appropriately authorized GitHub connection.
 
-Migration workflows also support `main` for the eventual cutover. Until that
-cutover, run manual checks with the migration branch selected. Do not point Pages
+The pending workflow patch adds `main` support for the eventual cutover; current
+migration workflows still target only the migration branch. Until that cutover,
+run manual checks with that branch selected. Do not point Pages
 at main while it lacks these changes, and do not merge PR 21 while DNS/TLS gates
 remain unmet. After approved cutover: merge the tested branch, move Pages' Git
 production branch to main, wait for and verify that exact merge commit, and retain
