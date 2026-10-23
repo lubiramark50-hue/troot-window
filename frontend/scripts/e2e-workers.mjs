@@ -35,6 +35,10 @@ try {
     const page = await browser.newPage({viewport, permissions:[]});
     let stored = null;
     const errors = [];
+    const waitForTown = value => page.waitForFunction(expected => {
+      const label = [...document.querySelectorAll("label")].find(node => node.textContent.trim().startsWith("Town or area"));
+      return label?.querySelector("input")?.value === expected;
+    }, value);
     page.on("pageerror", e => errors.push(e.message));
     await page.route("https://fake.supabase.test/**", async route => {
       const request = route.request();
@@ -95,10 +99,11 @@ try {
     });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Your approximate area: Kampala/i).waitFor();
-    await page.waitForFunction(() => document.querySelector('input[placeholder="e.g. Kampala, Wakiso"]')?.value === "Kampala" || [...document.querySelectorAll("input")].some(input => input.value === "Kampala"));
+    await waitForTown("Kampala");
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Granted permission should set a detected town");
     await page.getByRole("button",{name:"Search all of Uganda"}).click();
     await page.waitForFunction(() => new URL(location.href).searchParams.get("town") === null);
+    await waitForTown("");
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"","Explicit country search should clear only town");
     await page.getByRole("textbox",{name:"Town or area"}).fill("Entebbe");
     await page.getByRole("heading",{name:"No matching workers yet"}).waitFor();
@@ -114,6 +119,7 @@ try {
     });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Your approximate area: Kampala/i).waitFor();
+    await waitForTown("Kampala");
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Fallback geocoder must update search location");
     // Manual edits made during a pending lookup should always win.
     await page.unroute("https://api.bigdatacloud.net/**");
