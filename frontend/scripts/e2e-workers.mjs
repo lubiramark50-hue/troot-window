@@ -95,6 +95,7 @@ try {
     });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Your approximate area: Kampala/i).waitFor();
+    await page.waitForFunction(() => document.querySelector('input[placeholder="e.g. Kampala, Wakiso"]')?.value === "Kampala" || [...document.querySelectorAll("input")].some(input => input.value === "Kampala"));
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Granted permission should set a detected town");
     await page.getByRole("button",{name:"Search all of Uganda"}).click();
     await page.waitForFunction(() => new URL(location.href).searchParams.get("town") === null);

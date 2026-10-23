@@ -28,7 +28,7 @@ assert.match(robots, /^User-agent:/mi);
 assert.match(sitemap, /<urlset\b/);
 assert.match(sitemap, /https:\/\/trootwindow\.rentpay\.site\//);
 for (const path of ["/jobs", "/jobs/:id", "/workers", "/workers/:id", "/saved", "/post", "/safety", "/legal/:kind"]) {
-  assert.ok(redirects.split("\n").some(line => line.trim().split(/\s+/).join(" ") === `${path} /index.html 200`), `Keep supported deep link ${path}`);
+  assert.ok(redirects.split("\n").some(line => line.trim().split(/\s+/).join(" ") === `${path} / 200`), `Keep supported deep link ${path}`);
 }
 assert.doesNotMatch(redirects, /^\/\*\s+\/index\.html\s+200/m, "Missing assets must not become soft-404 HTML");
 assert.ok(existsSync(new URL("../public/404.html", import.meta.url)), "Pages needs an explicit missing-file document");
