@@ -79,6 +79,15 @@ try {
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
     await page.getByText(/Location access was denied or unavailable/i).waitFor();
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Wakiso","Permission denial must not erase manual town");
+    await page.context().grantPermissions(["geolocation"], { origin });
+    await page.context().setGeolocation({latitude:0.3136,longitude:32.5811});
+    await page.route("https://nominatim.openstreetmap.org/**", route =>
+      route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
+        address:{city:"Kampala",country_code:"ug"}
+      })}));
+    await page.getByRole("button",{name:/Use my approximate location/i}).click();
+    await page.getByText(/Approximate area detected: Kampala/i).waitFor();
+    assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Granted permission should set a detected town");
     await page.getByRole("link",{name:"Amina Testworker",exact:false}).first().click();
     await page.getByRole("heading",{name:"Amina Testworker"}).waitFor();
     await page.getByRole("link",{name:/Call worker/i}).waitFor();

@@ -101,7 +101,7 @@ export default function WorkerDirectory() {
         </label>
       </div>
       <button type="button" className="worker-location" onClick={locate} disabled={locating}><LocateFixed size={17} /> {locating ? "Finding your area…" : "Use my approximate location"}</button>
-      <p className="worker-muted worker-location-note">Optional. With permission, OpenStreetMap receives your approximate coordinates to identify a town. You can always search manually.</p>
+      <p className="worker-muted worker-location-note">Optional. With permission, OpenStreetMap receives your approximate coordinates to identify a town. You can always search manually. Geocoding data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>.</p>
       {locationMessage && <p role="status" className="worker-message">{locationMessage}</p>}
     </section>
     <div className="worker-results-head"><h2><Search size={19} /> Available listings</h2><small>Matched by country, service and areas served, not exact distance</small></div>
