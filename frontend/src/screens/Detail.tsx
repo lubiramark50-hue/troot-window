@@ -84,6 +84,7 @@ export default function Detail() {
       </div>
 
       <div className="actionbar">
+        <div className="actionbar-inner">
         {job.sourceUrl && (
           <a className="btn btn-primary grow" href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink size={19} />View original listing
@@ -92,6 +93,7 @@ export default function Detail() {
         {digits && <a className={`btn grow ${job.sourceUrl ? "btn-soft" : "btn-green"}`} href={`https://wa.me/${digits}?text=${msg}`} rel="noopener noreferrer"><MessageCircle size={19} />WhatsApp</a>}
         {job.phone && <a className={`btn grow ${digits ? "btn-soft" : "btn-primary"}`} href={`tel:${job.phone.replace(/[^\d+]/g, "")}`}><Phone size={19} />Call</a>}
         {job.email && <a className={`btn ${digits || job.phone ? "btn-soft icon-only" : "btn-primary grow"}`} aria-label="Email employer" href={`mailto:${job.email}?subject=${encodeURIComponent("Application: " + job.title)}&body=${msg}`}><Mail size={19} />{!(digits || job.phone) && "Email"}</a>}
+        </div>
       </div>
     </div>
   );
