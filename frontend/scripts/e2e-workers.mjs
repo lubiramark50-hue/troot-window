@@ -77,25 +77,49 @@ try {
     await page.getByRole("textbox",{name:"Town or area"}).fill("Wakiso");
     await page.getByRole("heading",{name:"Amina Testworker"}).waitFor();
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
-    await page.getByText(/Location access was denied or unavailable/i).waitFor();
+    await page.getByText(/Location permission is blocked/i).waitFor();
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Wakiso","Permission denial must not erase manual town");
     await page.context().grantPermissions(["geolocation"], { origin });
     await page.context().setGeolocation({latitude:0.3136,longitude:32.5811});
-    await page.route("https://nominatim.openstreetmap.org/**", route => {
+    await page.route("https://api.bigdatacloud.net/**", route => {
       const query = new URL(route.request().url()).searchParams;
-      assert.equal(query.get("lat"), "0.31", "Share approximate latitude only");
-      assert.equal(query.get("lon"), "32.58", "Share approximate longitude only");
+      assert.equal(query.get("latitude"), "0.314", "Only ~100m rounded latitude may leave device");
+      assert.equal(query.get("longitude"), "32.581", "Only ~100m rounded longitude may leave device");
       return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
-        address:{city:"Kampala Capital City",country_code:"ug"}
+        countryCode:"UG",city:"Kampala Capital City",locality:"Nakawa"
       })});
     });
     await page.getByRole("button",{name:/Use my approximate location/i}).click();
-    await page.getByText(/Approximate area detected: Kampala/i).waitFor();
-    await page.waitForFunction(() => {
-      const fields = [...document.querySelectorAll('input')];
-      return fields.some(input => input.value === "Kampala");
-    }, null, { timeout: 8000 });
+    await page.getByText(/Your approximate area: Kampala/i).waitFor();
     assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Granted permission should set a detected town");
+    await page.getByRole("button",{name:"Search all of Uganda"}).click();
+    await page.waitForFunction(() => new URL(location.href).searchParams.get("town") === null);
+    assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"","Explicit country search should clear only town");
+    await page.getByRole("textbox",{name:"Town or area"}).fill("Entebbe");
+    await page.getByRole("heading",{name:"No matching workers yet"}).waitFor();
+    await page.getByRole("button",{name:"Show workers throughout Uganda"}).click();
+    await page.getByRole("heading",{name:"Amina Testworker"}).waitFor();
+    // Simulate primary reverse lookup unavailable, fallback via OpenStreetMap.
+    await page.unroute("https://api.bigdatacloud.net/**");
+    await page.route("https://api.bigdatacloud.net/**", route => route.fulfill({status:503,body:"Service unavailable"}));
+    await page.route("https://nominatim.openstreetmap.org/**", route => {
+      const query = new URL(route.request().url()).searchParams;
+      assert.equal(query.get("lat"),"0.314");
+      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({address:{city:"Kampala Capital City",country_code:"ug"}})});
+    });
+    await page.getByRole("button",{name:/Use my approximate location/i}).click();
+    await page.getByText(/Your approximate area: Kampala/i).waitFor();
+    assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Kampala","Fallback geocoder must update search location");
+    // Manual edits made during a pending lookup should always win.
+    await page.unroute("https://api.bigdatacloud.net/**");
+    await page.route("https://api.bigdatacloud.net/**", async route => {
+      await sleep(350);
+      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({countryCode:"UG",city:"Kampala"})});
+    });
+    await page.getByRole("button",{name:/Use my approximate location/i}).click();
+    await page.getByRole("textbox",{name:"Town or area"}).fill("Wakiso");
+    await page.waitForTimeout(450);
+    assert.equal(await page.getByRole("textbox",{name:"Town or area"}).inputValue(),"Wakiso","A late geocoder must not override manual location entry");
     await page.getByRole("link",{name:"Amina Testworker",exact:false}).first().click();
     await page.getByRole("heading",{name:"Amina Testworker"}).waitFor();
     await page.getByRole("link",{name:/Call worker/i}).waitFor();
@@ -107,6 +131,9 @@ try {
     await page.getByRole("heading",{name:"Your worker profile"}).waitFor();
     await page.getByRole("textbox",{name:"Public name"}).fill("Test Plumber");
     await page.getByRole("checkbox",{name:"Plumbing"}).check();
+    await page.getByRole("button",{name:/Use my approximate location/i}).click();
+    await page.getByText(/Approximate location selected: Kampala/).waitFor();
+    assert.equal(await page.getByRole("textbox",{name:"Town or district"}).inputValue(),"Kampala","Location can autofill worker profile");
     await page.getByRole("textbox",{name:"Town or district"}).fill("Kampala");
     await page.getByRole("textbox",{name:"Public contact phone"}).fill("+256 700 111 222");
     await page.getByRole("checkbox",{name:/Publish my worker listing/i}).check();

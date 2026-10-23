@@ -18,7 +18,12 @@
 .worker-fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .worker-location{display:inline-flex;align-items:center;gap:8px;background:#eaf3ff;color:#145ec5;border:0;border-radius:10px;padding:11px 13px;font-weight:750;margin-top:14px;cursor:pointer}
 .worker-location:disabled{opacity:.6;cursor:progress}
+.worker-location-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.worker-location-actions .worker-location{margin-top:14px}
+.worker-location-clear{margin-top:14px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #d4e2f1;border-radius:10px;min-height:43px;padding:9px 12px;background:#fff;color:#145ec5;font-size:13px;font-weight:750;cursor:pointer}
 .worker-location-note{margin-top:8px}
+.worker-location-note a{color:#145ec5;text-decoration:underline;text-underline-offset:2px}
+.worker-location-note a:hover{color:#0c4591}
 .worker-message{display:flex;gap:7px;align-items:center;background:#e7f7ee;color:#145b3d;padding:12px;border-radius:11px;font-size:13px;margin:12px 0}
 .worker-muted{color:#6a7a90;font-size:13px;line-height:1.5}
 .worker-muted svg{display:inline;vertical-align:-2px}

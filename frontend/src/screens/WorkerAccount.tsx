@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Link } from "react-router-dom";
-import { CheckCircle2, LogOut } from "lucide-react";
+import { CheckCircle2, LogOut, LocateFixed } from "lucide-react";
 import { TopBar } from "../ui";
+import { detectCurrentArea } from "../worker-location";
 import { workerSupabase } from "../supabase";
 import { COUNTRIES, SERVICES, contactPhone, getOwnProfile, saveOwnProfile, safeImageUrl, type TravelMode, type WorkerInput, type OwnProfile } from "../workers";
 
@@ -52,6 +53,10 @@ export default function WorkerAccount() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [locatingProfile, setLocatingProfile] = useState(false);
+  const [locationFeedback, setLocationFeedback] = useState("");
+  const locationRequest = useRef(0);
+  useEffect(() => () => { locationRequest.current += 1; }, []);
 
   useEffect(() => {
     let live = true;
@@ -80,7 +85,25 @@ export default function WorkerAccount() {
       .finally(() => { if (live) setLoadingProfile(false); });
     return () => { live = false; };
   }, [user?.id]);
-  const edit = <K extends keyof Fields>(key: K, value: Fields[K]) => setForm(f => ({ ...f, [key]: value }));
+  const edit = <K extends keyof Fields>(key: K, value: Fields[K]) => {
+    if (key === "country_code" || key === "town") {
+      locationRequest.current += 1; setLocatingProfile(false); setLocationFeedback("");
+    }
+    setForm(f => ({ ...f, [key]: value }));
+  };
+  const locateProfile = async () => {
+    const request = ++locationRequest.current;
+    setLocatingProfile(true); setLocationFeedback("");
+    try {
+      const area = await detectCurrentArea();
+      if (locationRequest.current !== request) return;
+      setForm(current => ({ ...current, country_code: area.country, town: area.town }));
+      setLocationFeedback("Approximate location selected: " + area.town + ". Check that this is the town where you offer services.");
+    } catch (e) {
+      if (locationRequest.current === request)
+        setLocationFeedback(e instanceof Error ? e.message : "Could not find your town. Enter it manually.");
+    } finally { if (locationRequest.current === request) setLocatingProfile(false); }
+  };
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setBusy(true); setError(""); setMessage("");
     try {
@@ -169,6 +192,11 @@ export default function WorkerAccount() {
               <label>Country<select value={form.country_code} onChange={e => edit("country_code", e.target.value)}>{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</select></label>
               <label>Town or district<input value={form.town} onChange={e => edit("town", e.target.value)} maxLength={100} required /></label>
             </div>
+            <div className="worker-location-actions">
+              <button className="worker-location" type="button" onClick={locateProfile} disabled={locatingProfile} aria-busy={locatingProfile}><LocateFixed size={17} /> {locatingProfile ? "Detecting your town…" : "Use my approximate location"}</button>
+            </div>
+            {locationFeedback && <p role="status" className="worker-message">{locationFeedback}</p>}
+            <p className="worker-muted worker-location-note">Optional. Your approximate coordinates go to BigDataCloud for town detection (OpenStreetMap fallback); they are not stored in your profile. You can always type or correct the town yourself.</p>
             <label>Other towns/areas you serve, separated by commas<input value={form.service_areas} onChange={e => edit("service_areas", e.target.value)} placeholder="e.g. Entebbe, Wakiso" maxLength={1200} /></label>
             <div className="worker-fields two">
               <label>Where you work<select value={form.travel_mode} onChange={e => edit("travel_mode", e.target.value as TravelMode)}><option value="mobile">I travel to customers</option><option value="fixed">Customers visit me</option><option value="both">Both</option></select></label>
