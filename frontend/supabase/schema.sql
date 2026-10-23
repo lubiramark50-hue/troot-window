@@ -113,6 +113,14 @@ begin
   new.published_at := now();
   new.expires_at := now() + interval '30 days';
   new.title := btrim(new.title);
+  -- Serialise submissions from the same network and identical job identity.
+  -- Without transaction-scoped locks, simultaneous inserts can both pass
+  -- COUNT/EXISTS checks before either transaction commits.
+  perform pg_advisory_xact_lock(hashtextextended('troot:post:' || new.submitter_hash, 0));
+  perform pg_advisory_xact_lock(hashtextextended(
+    'troot:duplicate:' || lower(btrim(new.title)) || ':' ||
+    lower(btrim(new.employer_name)) || ':' || lower(btrim(new.location)), 0));
+
   -- Burst limit: 5 posts per 10 minutes per network.
   if (select count(*) from public.jobs
         where submitter_hash = new.submitter_hash
@@ -242,6 +250,15 @@ revoke all on function public.ingest_external_jobs(jsonb) from anon, authenticat
 revoke all on function public.close_stale_external_jobs(interval) from public;
 revoke all on function public.close_stale_external_jobs(interval) from anon, authenticated;
 
+-- PostgreSQL grants EXECUTE on newly created functions to PUBLIC by default.
+-- RLS does not protect privileged SECURITY DEFINER RPC functions. Keep every
+-- internal function unavailable to API roles; triggers and pg_cron continue
+-- running as the database owner.
+revoke all on function public.close_expired_jobs() from public, anon, authenticated;
+revoke all on function public.is_trusted_source(text) from public, anon, authenticated;
+revoke all on function public.caller_hash() from public, anon, authenticated;
+revoke all on function public.jobs_before_insert() from public, anon, authenticated;
+
 create or replace function public.jobs_before_update() returns trigger
 language plpgsql set search_path = public as $$
 begin
@@ -255,6 +272,8 @@ create or replace function public.reports_before_insert() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   new.reporter_hash := public.caller_hash();
+  -- Prevent concurrent reports from bypassing the per-network quota.
+  perform pg_advisory_xact_lock(hashtextextended('troot:report:' || new.reporter_hash, 0));
   if (select count(*) from public.job_reports
         where reporter_hash = new.reporter_hash
           and created_at > now() - interval '10 minutes') >= 10 then
@@ -272,6 +291,10 @@ create trigger jobs_before_update before update on public.jobs
 drop trigger if exists reports_before_insert on public.job_reports;
 create trigger reports_before_insert before insert on public.job_reports
   for each row execute function public.reports_before_insert();
+
+-- After CREATE OR REPLACE, existing grants may remain from older deployments.
+revoke all on function public.jobs_before_update() from public, anon, authenticated;
+revoke all on function public.reports_before_insert() from public, anon, authenticated;
 
 -- Row Level Security: default deny.
 alter table public.jobs enable row level security;
