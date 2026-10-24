@@ -1,0 +1,31 @@
+name: TROOT Cloudflare real-browser check
+
+on:
+  push:
+    branches: [migration/cloudflare-pages-20261023]
+    paths:
+      - 'frontend/scripts/verify-cloudflare-browser.mjs'
+      - '.github/workflows/cloudflare-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install project dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test Cloudflare Pages desktop and mobile
+        run: node scripts/verify-cloudflare-browser.mjs

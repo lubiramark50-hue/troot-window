@@ -36,6 +36,7 @@ function fromProfile(p: OwnProfile): Fields {
 function checkProfile(form: Fields): string | null {
   if (form.display_name.trim().length < 2) return "Enter the name customers will see.";
   if (!form.services.length) return "Choose at least one service.";
+  if (form.services.length > 12) return "Choose no more than 12 services.";
   if (!validCountryCode(form.country_code)) return "Choose a country for your worker listing.";
   if (form.town.trim().length < 2) return "Enter a city, town or district.";
   if (!contactPhone(form.phone)) return "Enter your phone number with its international country dialling code, e.g. +1 202 555 0123.";
@@ -54,6 +55,8 @@ export default function WorkerAccount() {
   const [form, setForm] = useState<Fields>(newProfileFields);
   const [hasProfile, setHasProfile] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [profileLoadFailed, setProfileLoadFailed] = useState(false);
+  const [profileRetry, setProfileRetry] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -78,17 +81,17 @@ export default function WorkerAccount() {
     return () => { live = false; subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
-    if (!user) { setHasProfile(false); setForm(newProfileFields()); return; }
+    if (!user) { setHasProfile(false); setProfileLoadFailed(false); setForm(newProfileFields()); return; }
     let live = true;
-    setLoadingProfile(true); setError("");
+    setLoadingProfile(true); setProfileLoadFailed(false); setError("");
     getOwnProfile(user.id).then(profile => {
       if (!live) return;
       setHasProfile(!!profile);
       setForm(profile ? fromProfile(profile) : newProfileFields());
-    }).catch(e => { if (live) setError(e instanceof Error ? e.message : "Unable to load your profile."); })
+    }).catch(e => { if (live) { setProfileLoadFailed(true); setError(e instanceof Error ? e.message : "Unable to load your profile."); } })
       .finally(() => { if (live) setLoadingProfile(false); });
     return () => { live = false; };
-  }, [user?.id]);
+  }, [user?.id, profileRetry]);
   const edit = <K extends keyof Fields>(key: K, value: Fields[K]) => {
     if (key === "country_code" || key === "town") {
       locationRequest.current += 1; setLocatingProfile(false); setLocationFeedback("");
@@ -137,7 +140,7 @@ export default function WorkerAccount() {
     finally { setBusy(false); }
   };
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); if (!user) return;
+    event.preventDefault(); if (!user || loadingProfile || profileLoadFailed) return;
     setError(""); setMessage("");
     const invalid = checkProfile(form);
     if (invalid) { setError(invalid); return; }
@@ -183,12 +186,17 @@ export default function WorkerAccount() {
           <div className="worker-account-links">
             {mode !== "reset" && <><button onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(""); setMessage(""); }}>{mode === "signup" ? "Already registered? Sign in" : "New worker? Register"}</button><button onClick={() => { setMode(mode === "forgot" ? "login" : "forgot"); setError(""); setMessage(""); }}>{mode === "forgot" ? "Return to sign in" : "Forgot password?"}</button></>}
           </div>
-        </> : loadingProfile ? <p role="status">Loading your profile…</p> : <>
+        </> : loadingProfile ? <p role="status">Loading your profile…</p> : profileLoadFailed ? <div className="state" role="alert">
+          <h1>Unable to load your profile</h1>
+          <p>{error || "Your profile is temporarily unavailable."} Editing is disabled until your existing information can be loaded safely.</p>
+          <button className="btn btn-primary" type="button" onClick={() => setProfileRetry(n => n + 1)}>Retry loading profile</button>
+          <button className="btn btn-soft" type="button" onClick={logout}><LogOut size={16} /> Log out</button>
+        </div> : <>
           <div className="worker-account-heading"><div><h1>Your worker profile</h1><p className="worker-muted">Signed in as {user.email}</p></div><button className="btn btn-soft" type="button" onClick={logout}><LogOut size={16} /> Log out</button></div>
           <p className="worker-muted">Your email and password are private. Only the profile information you choose to publish is visible to customers.</p>
           {error && <p className="banner-err" role="alert">{error}</p>}
           {message && <p className="worker-message" role="status"><CheckCircle2 size={16} /> {message}</p>}
-          <form className="worker-form" onSubmit={saveProfile}>
+          <form className="worker-form" onSubmit={saveProfile} noValidate>
             <label>Public name<input value={form.display_name} onChange={e => edit("display_name", e.target.value)} maxLength={100} required /></label>
             <fieldset><legend>Services offered</legend><div className="worker-checks">{SERVICES.map(s => <label key={s}><input type="checkbox" checked={form.services.includes(s)} onChange={e => edit("services", e.target.checked ? [...form.services,s] : form.services.filter(x => x !== s))} /> {s}</label>)}</div></fieldset>
             <label>Skills and specialties<input value={form.skills} onChange={e => edit("skills", e.target.value)} maxLength={600} placeholder="e.g. bathroom installations, solar wiring" /></label>
